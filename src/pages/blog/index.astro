@@ -29,7 +29,7 @@ const postList = allPosts.map((post) => ({
     : '日期未知',
   dateRaw: post.publishDate ? post.publishDate.toISOString() : '',
   description: post.excerpt || '',
-  image: post.image || '/blog-placeholder.jpg',
+  image: post.image || '/blog-placeholder.webp',
   tags: post.tags ? post.tags.map((t) => t.title).slice(0, 3) : [],
 }));
 ---
@@ -88,7 +88,7 @@ const postList = allPosts.map((post) => ({
             <>
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
                 {paginatedPosts.map((post, index) => {
-                  const image = post.image || '/blog-placeholder.jpg';
+                  const image = post.image || '/blog-placeholder.webp';
                   const tags = post.tags ? post.tags.slice(0, 3) : [];
                   const delayClass = `delay-${(index % 6) * 100}`;
                   return (
@@ -101,7 +101,9 @@ const postList = allPosts.map((post) => ({
                           src={image}
                           alt={post.title || '文章封面'}
                           class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          loading="lazy"
+                          loading={index === 0 ? 'eager' : 'lazy'}
+                          {...(index === 0 ? { fetchpriority: 'high' } : {})}
+                          decoding="async"
                         />
                       </div>
                       <div class="p-6">
@@ -199,9 +201,11 @@ const postList = allPosts.map((post) => ({
     const imgWrap = document.createElement('div');
     imgWrap.className = 'aspect-video overflow-hidden bg-gray-100 dark:bg-slate-700';
     const img = document.createElement('img');
-    img.src = post.image || '/blog-placeholder.jpg';
+    img.src = post.image || '/blog-placeholder.webp';
     img.alt = post.title || '文章封面';
-    img.loading = 'lazy';
+    img.loading = index === 0 ? 'eager' : 'lazy';
+    img.fetchPriority = index === 0 ? 'high' : 'auto';
+    img.decoding = 'async';
     img.className = 'w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
     imgWrap.appendChild(img);
 

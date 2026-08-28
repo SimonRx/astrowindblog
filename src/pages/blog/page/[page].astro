@@ -41,7 +41,7 @@ const metadata = { title: `博客 - 第 ${currentPage} 页` };
       <>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
           {paginatedPosts.map((post, index) => {
-            const heroImage = post.image || '/blog-placeholder.jpg';
+            const heroImage = post.image || '/blog-placeholder.webp';
             const tags = post.tags ? post.tags.slice(0, 3) : [];
             const delayClass = `delay-${(index % 6) * 100}`;
             return (
@@ -54,7 +54,9 @@ const metadata = { title: `博客 - 第 ${currentPage} 页` };
                     src={heroImage}
                     alt={post.title || '文章封面'}
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                    {...(index === 0 ? { fetchpriority: 'high' } : {})}
+                    decoding="async"
                   />
                 </div>
                 <div class="p-6">

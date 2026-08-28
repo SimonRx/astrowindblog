@@ -483,6 +483,19 @@ const metadata = { title: '视频工具' };
 
   const MAX_FRAMES = 300;
 
+  // ---- FFmpeg 全局单例（跨 View Transitions 页面复用，避免重复下载 wasm） ----
+  // window 在 SPA session 内持久，DOM 重建不重置；模块顶层代码在每次进入本页时重新执行，
+  // 但 g.__ffmpeg 存于 window 故不会被清空。
+  const g = window as unknown as {
+    __ffmpeg?: FFmpeg;
+    __ffmpegLoadingPromise?: Promise<FFmpeg> | null;
+  };
+  // 当前页面的事件回调（每页 init 时赋值，切页时置空，避免旧 worker 回调打到新页）
+  let activeHandlers: {
+    setError: (message: string) => void;
+    setProgress: (percent: number, label: string) => void;
+  } | null = null;
+
   function formatDuration(seconds: number): string {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -551,8 +564,6 @@ const metadata = { title: '视频工具' };
     let processing = false;
     let cancelled = false;
     let activeTool = 'gif';
-    let ffmpeg: FFmpeg | null = null;
-    let ffmpegLoading = false;
     let cropper: Cropper | null = null;
     let cropAspectRatio: number | null = null; // null = 自由
     let videoNaturalWidth = 0;
@@ -592,6 +603,9 @@ const metadata = { title: '视频工具' };
       progressLabel.textContent = label;
       progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
     }
+
+    // 让全局 FFmpeg 实例的回调指向本页的处理器（切页时 before-swap 会清空）
+    activeHandlers = { setError, setProgress };
 
     function revokeUrl(url: string | null): void {
       if (url) URL.revokeObjectURL(url);
@@ -766,23 +780,28 @@ const metadata = { title: '视频工具' };
       showOutput(blob, `${base}.gif`, 'image/gif');
     }
 
-    // ---- FFmpeg 引擎（动态加载，仅在使用 FFmpeg 功能时下载 JS；ESM core 运行时拼接 URL） ----
+    // ---- FFmpeg 引擎（全局单例 + Promise 锁，跨页面复用，避免重复下载 wasm） ----
     async function getFfmpeg(): Promise<FFmpeg> {
-      if (ffmpeg && ffmpeg.loaded) return ffmpeg;
-      if (!ffmpeg) {
-        // 动态 import：把 @ffmpeg/ffmpeg 拆成独立 chunk，不进首包
-        const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-        ffmpeg = new FFmpeg();
-        ffmpeg.on('log', ({ message }: { message: string }) => {
-          if (message.includes('error') || message.includes('Error')) setError(`FFmpeg：${message}`);
-        });
-        ffmpeg.on('progress', ({ progress }: { progress: number }) => {
-          setProgress(progress * 100, `正在处理... ${Math.round(progress * 100)}%`);
-        });
-      }
-      if (ffmpegLoading) throw new Error('FFmpeg 正在加载，请稍候。');
-      ffmpegLoading = true;
-      try {
+      // 1. 已加载完成：直接返回
+      if (g.__ffmpeg?.loaded) return g.__ffmpeg;
+      // 2. 正在加载：复用同一个 Promise，避免并发重复初始化
+      if (g.__ffmpegLoadingPromise) return g.__ffmpegLoadingPromise;
+      // 3. 首次加载：创建 Promise 锁
+      g.__ffmpegLoadingPromise = (async () => {
+        if (!g.__ffmpeg) {
+          // 动态 import：把 @ffmpeg/ffmpeg 拆成独立 chunk，不进首包
+          const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+          g.__ffmpeg = new FFmpeg();
+          // 回调通过 activeHandlers 间接引用当前页面处理器，避免绑定死首次页面的 DOM
+          g.__ffmpeg.on('log', ({ message }: { message: string }) => {
+            if (message.includes('error') || message.includes('Error')) {
+              activeHandlers?.setError(`FFmpeg：${message}`);
+            }
+          });
+          g.__ffmpeg.on('progress', ({ progress }: { progress: number }) => {
+            activeHandlers?.setProgress(progress * 100, `正在处理... ${Math.round(progress * 100)}%`);
+          });
+        }
         setStatus('正在加载 FFmpeg 引擎（首次约 30MB）...');
         // 运行时动态拼接，避免 Vite 静态分析 public 路径。
         // wasm 超过 ESA Pages 单文件 25MB 限制，通过 PUBLIC_FFMPEG_BASE 指定加载地址；
@@ -791,15 +810,18 @@ const metadata = { title: '视频工具' };
           (
             import.meta.env.PUBLIC_FFMPEG_BASE || 'https://registry.npmmirror.com/@ffmpeg/core/0.12.10/files/dist/esm/'
           ).replace(/\/$/, '') + '/';
-        await ffmpeg.load({
+        await g.__ffmpeg.load({
           coreURL: base + 'ffmpeg-core.js',
           wasmURL: base + 'ffmpeg-core.wasm',
         });
         setStatus('');
-        return ffmpeg;
-      } finally {
-        ffmpegLoading = false;
-      }
+        return g.__ffmpeg;
+      })().catch((err) => {
+        // 加载失败：重置锁，允许下次重试
+        g.__ffmpegLoadingPromise = null;
+        throw err;
+      });
+      return g.__ffmpegLoadingPromise;
     }
 
     async function runFfmpeg(inputExt: string, args: string[], outExt = 'mp4'): Promise<{ blob: Blob; mime: string }> {
@@ -1317,4 +1339,13 @@ const metadata = { title: '视频工具' };
   }
 
   document.addEventListener('astro:page-load', initVideoToolbox);
+
+  // 离开页面时清空事件回调，避免后台仍在运行的 FFmpeg worker 把进度/错误打到新页。
+  // 脚本在每次进入本页时会重新执行，用 window 标志保证只注册一次，防止累积多个监听器。
+  if (!(window as unknown as { __awFfmpegCleanup?: boolean }).__awFfmpegCleanup) {
+    (window as unknown as { __awFfmpegCleanup?: boolean }).__awFfmpegCleanup = true;
+    document.addEventListener('astro:before-swap', () => {
+      activeHandlers = null;
+    });
+  }
 </script>

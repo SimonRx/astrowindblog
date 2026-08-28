@@ -16,9 +16,11 @@ const metadata = { title: '主页' };
       class="text-center mb-12 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
     >
       <img
-        src="/avatar.jpg"
+        src="/avatar.webp"
         alt="我的头像"
         class="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-gray-200 dark:border-slate-700"
+        fetchpriority="high"
+        decoding="async"
       />
       <h1 class="text-3xl font-bold">二咪喵喵</h1>
       <p class="text-lg text-muted mt-2">In case I don't see you, good afternoon, good evening, and good night.</p>
@@ -46,7 +48,7 @@ const metadata = { title: '主页' };
               style="scroll-padding-left: 16px; scroll-padding-right: 16px;"
             >
               {recentPosts.map((post, index) => {
-                const heroImage = post.image || '/blog-placeholder.jpg';
+                const heroImage = post.image || '/blog-placeholder.webp';
                 const delayClass = index < 3 ? `delay-${(index + 1) * 100}` : '';
                 return (
                   <a
@@ -58,7 +60,9 @@ const metadata = { title: '主页' };
                         src={heroImage}
                         alt={post.title || '文章封面'}
                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                        {...(index === 0 ? { fetchpriority: 'high' } : {})}
+                        decoding="async"
                       />
                     </div>
                     <div class="p-5">

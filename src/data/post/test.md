@@ -4,7 +4,7 @@ title: Markdown 语法测试
 subtitle: 这是一段简短的副标题，用于补充说明
 excerpt: 用于测试博客的 Markdown 渲染效果，包含标题、代码、列表、表格、图片等常见语法。
 author: 你的名字
-image: /blog-placeholder.jpg
+image: /blog-placeholder.webp
 tags: ["Markdown", "测试", "语法"]
 ---
 
