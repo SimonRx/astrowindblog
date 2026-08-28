@@ -25,3 +25,6 @@ pnpm-lock.yaml
 
 # local backups
 backup/
+
+# GitHub CI workflow (推送需要 PAT 的 workflow scope，本项目用 ESA 部署，暂不启用)
+.github/workflows/
