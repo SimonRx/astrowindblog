@@ -776,8 +776,10 @@ const metadata = { title: '视频工具' };
       ffmpegLoading = true;
       try {
         setStatus('正在加载 FFmpeg 引擎（首次约 30MB）...');
-        // 运行时动态拼接，避免 Vite 静态分析 public 路径
-        const base = window.location.origin + '/ffmpeg/';
+        // 运行时动态拼接，避免 Vite 静态分析 public 路径。
+        // wasm 超过 ESA Pages 单文件 25MB 限制，生产环境通过 PUBLIC_FFMPEG_BASE 指向 OSS 域名加载；
+        // 未配置时回退到本地 /ffmpeg/（开发/本地预览）。
+        const base = (import.meta.env.PUBLIC_FFMPEG_BASE || window.location.origin + '/ffmpeg/').replace(/\/$/, '') + '/';
         await ffmpeg.load({
           coreURL: base + 'ffmpeg-core.js',
           wasmURL: base + 'ffmpeg-core.wasm',

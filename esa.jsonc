@@ -3,7 +3,7 @@
   // 文档: https://help.aliyun.com/zh/edge-security-acceleration/esa/user-guide/build-pages
   "name": "astrowindblog",
   "installCommand": "npm install",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build:esa",
   "assets": {
     "directory": "./dist",
     "notFoundStrategy": "404Page"
