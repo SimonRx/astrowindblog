@@ -371,9 +371,15 @@ const metadata = { title: '图片工具' };
     // 页面归属守卫：仅当本页 DOM 存在时才初始化。
     // 用唯一标识区分，避免与 video-toolbox 共享的 #tool-panel 等 ID 造成误判，
     // 防止 View Transitions 客户端导航时两个 init 同时绑定到同一元素。
-    if (!document.querySelector('[data-page="image-toolbox"]')) {
+    const root = document.querySelector<HTMLElement>('[data-page="image-toolbox"]');
+    if (!root) {
       return;
     }
+    // 幂等保护：把初始化标志挂在本页 DOM 根节点上。View Transitions 离开再回来时
+    // DOM 被重建（标志消失）会重新初始化；同一 DOM 上重复的 astro:page-load 则跳过，
+    // 避免重复绑定事件导致多个闭包互相覆盖（如转换格式下拉框读到旧值）。
+    if (root.dataset.init) return;
+    root.dataset.init = 'true';
     const infoName = document.getElementById('info-name') as HTMLElement | null;
     const infoSize = document.getElementById('info-size') as HTMLElement | null;
     const infoRes = document.getElementById('info-res') as HTMLElement | null;
@@ -410,6 +416,7 @@ const metadata = { title: '图片工具' };
     let outputBlob: Blob | null = null;
     let outputUrl: string | null = null;
     let outputName = '';
+    let outputFileName = '';
     let processing = false;
     let activeTool = 'crop';
     let cropSyncLocked = false;
@@ -468,7 +475,9 @@ const metadata = { title: '图片工具' };
     function showOutput(blob: Blob, name: string): void {
       revokeUrl(outputUrl);
       outputBlob = blob;
-      outputName = name;
+      // outputName 保持上传文件的 base 名，供后续操作拼接；
+      // 完整下载名单独存，避免被覆盖后累积后缀。
+      outputFileName = name;
       outputUrl = URL.createObjectURL(blob);
       outputPreviewEl.src = outputUrl;
       show(outputPreviewEl);
@@ -779,6 +788,8 @@ const metadata = { title: '图片工具' };
       revokeUrl(originalUrl);
       originalFile = file;
       outputBlob = null;
+      // 重置输出文件名（基于上传文件的 base 名），避免后续拼接后缀不断累积
+      outputName = file.name.replace(/\.[^.]+$/, '');
       originalUrl = URL.createObjectURL(file);
 
       const img = await loadImageElement(originalUrl);
@@ -883,7 +894,7 @@ const metadata = { title: '图片工具' };
       if (!outputBlob) return;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(outputBlob);
-      a.download = outputName;
+      a.download = outputFileName;
       document.body.appendChild(a);
       a.click();
       a.remove();

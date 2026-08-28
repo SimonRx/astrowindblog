@@ -502,9 +502,15 @@ const metadata = { title: '视频工具' };
     // 页面归属守卫：仅当本页 DOM 存在时才初始化。
     // 用唯一标识区分，避免与 image-toolbox 共享的 #tool-panel 等 ID 造成误判，
     // 防止 View Transitions 客户端导航时两个 init 同时绑定到同一元素。
-    if (!document.querySelector('[data-page="video-toolbox"]')) {
+    const root = document.querySelector<HTMLElement>('[data-page="video-toolbox"]');
+    if (!root) {
       return;
     }
+    // 幂等保护：把初始化标志挂在本页 DOM 根节点上。View Transitions 离开再回来时
+    // DOM 被重建（标志消失）会重新初始化；同一 DOM 上重复的 astro:page-load 则跳过，
+    // 避免重复绑定事件导致多个闭包互相覆盖。
+    if (root.dataset.init) return;
+    root.dataset.init = 'true';
     const uploadWrap = document.getElementById('upload-wrap') as HTMLElement;
     const uploadArea = document.getElementById('upload-area') as HTMLElement;
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
@@ -833,12 +839,9 @@ const metadata = { title: '视频工具' };
         duration.toFixed(3),
         '-i',
         'input' + inputExt(),
+        // 视频流直接复制（零重编码），仅音频转 aac（兼容 mp4 容器），接近秒级
         '-c:v',
-        'libx264',
-        '-crf',
-        '18',
-        '-preset',
-        'fast',
+        'copy',
         '-c:a',
         'aac',
         '-movflags',
@@ -872,8 +875,9 @@ const metadata = { title: '视频工具' };
         'libx264',
         '-crf',
         String(crf),
+        // wasm 单线程下 ultrafast 显著提速（3-8 倍），画质略降但对工具场景够用
         '-preset',
-        'fast',
+        'ultrafast',
         '-c:a',
         'aac',
         '-movflags',
@@ -904,9 +908,9 @@ const metadata = { title: '视频工具' };
         '-c:v',
         'libx264',
         '-crf',
-        '18',
+        '28',
         '-preset',
-        'fast',
+        'ultrafast',
         '-c:a',
         'aac',
         '-movflags',
@@ -932,9 +936,9 @@ const metadata = { title: '视频工具' };
         '-c:v',
         'libx264',
         '-crf',
-        '18',
+        '28',
         '-preset',
-        'fast',
+        'ultrafast',
         '-c:a',
         'aac',
         '-movflags',
@@ -952,12 +956,9 @@ const metadata = { title: '视频工具' };
         '-i',
         'input' + inputExt(),
         '-an',
+        // 仅移除音轨，视频流直接复制（零重编码），接近秒级
         '-c:v',
-        'libx264',
-        '-crf',
-        '18',
-        '-preset',
-        'fast',
+        'copy',
         '-movflags',
         '+faststart',
         'output.mp4',
@@ -1023,14 +1024,29 @@ const metadata = { title: '视频工具' };
       const vf = `crop=${cw}:${ch}:${cx}:${cy}`;
       const outArgs =
         format === 'webm'
-          ? ['-c:v', 'libvpx-vp9', '-b:v', '1M', '-c:a', 'libopus', '-movflags', '+faststart', 'output.webm']
+          ? // vp9 在 wasm 单线程下极慢，用 realtime + 高 cpu-used 提速
+            [
+              '-c:v',
+              'libvpx-vp9',
+              '-b:v',
+              '1M',
+              '-deadline',
+              'realtime',
+              '-cpu-used',
+              '8',
+              '-c:a',
+              'libopus',
+              '-movflags',
+              '+faststart',
+              'output.webm',
+            ]
           : [
               '-c:v',
               'libx264',
               '-crf',
-              '18',
+              '28',
               '-preset',
-              'fast',
+              'ultrafast',
               '-c:a',
               'aac',
               '-movflags',
