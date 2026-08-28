@@ -1,0 +1,45 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import { Icon } from 'astro-icon/components';
+import { tools } from '../../data/tools';
+
+const metadata = { title: '工具箱' };
+---
+
+<PageLayout metadata={metadata}>
+  <main class="max-w-6xl mx-auto px-4 py-12">
+    <div
+      class="text-center mb-12 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
+    >
+      <h1 class="text-3xl font-bold mb-3">工具箱</h1>
+      <p class="text-muted">一些实用的纯前端小工具，全部在浏览器本地运行。</p>
+    </div>
+
+    <div
+      class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
+    >
+      {
+        tools.map((tool, index) => {
+          const delayClass = `delay-${(index % 6) * 100}`;
+          return (
+            <a
+              href={`/tools/${tool.slug}`}
+              class={`group block bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-8 text-center shadow-md hover:shadow-xl transition-shadow duration-300 ${delayClass}`}
+            >
+              <div class="w-14 h-14 mx-auto rounded-lg bg-blue-50 dark:bg-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4 group-hover:scale-110 transition-transform duration-300">
+                <Icon name={tool.icon} class="w-8 h-8" />
+              </div>
+              <h2 class="text-xl font-semibold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                {tool.name}
+              </h2>
+              <p class="text-muted mt-2 text-sm">{tool.description}</p>
+              <span class="inline-block mt-4 text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:underline">
+                打开 →
+              </span>
+            </a>
+          );
+        })
+      }
+    </div>
+  </main>
+</PageLayout>

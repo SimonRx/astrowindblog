@@ -1,0 +1,107 @@
+---
+// @ts-nocheck
+import PageLayout from '../../../layouts/PageLayout.astro';
+import { fetchPosts } from '../../../utils/blog';
+
+// 为每一页生成独立静态路径（第 1 页即 /blog，无需生成 /blog/page/1，
+// 因此从第 2 页开始；getStaticPaths 被 Astro 提升到独立作用域，
+// 因此在此内部自行计算，不能引用外层变量）
+export async function getStaticPaths() {
+  const perPage = 6;
+  const posts = await fetchPosts();
+  const pages = Math.ceil(posts.length / perPage);
+  return Array.from({ length: Math.max(pages - 1, 0) }, (_, i) => ({
+    params: { page: String(i + 2) },
+  }));
+}
+
+const postsPerPage = 6;
+const allPosts = await fetchPosts();
+const totalPages = Math.ceil(allPosts.length / postsPerPage);
+
+const currentPage = Number(Astro.params.page) || 1;
+const start = (currentPage - 1) * postsPerPage;
+const paginatedPosts = allPosts.slice(start, start + postsPerPage);
+
+const metadata = { title: `博客 - 第 ${currentPage} 页` };
+---
+
+<PageLayout metadata={metadata}>
+  <main class="max-w-7xl mx-auto px-4 py-12">
+
+    <!-- 标题（淡入动画） -->
+    <div class="mb-10 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
+      <h1 class="text-2xl md:text-3xl font-bold mb-2 tracking-tight">所有文章</h1>
+      <p class="text-muted text-sm">技术实践、折腾记录与日常随笔的全部文章列表。</p>
+    </div>
+
+    {allPosts.length === 0 ? (
+      <p class="text-center text-muted">还没有文章，敬请期待！</p>
+    ) : (
+      <>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
+          {paginatedPosts.map((post, index) => {
+            const heroImage = post.image || '/blog-placeholder.jpg';
+            const tags = post.tags ? post.tags.slice(0, 3) : [];
+            const delayClass = `delay-${(index % 6) * 100}`;
+            return (
+              <a
+                href={`/blog/${post.slug}`}
+                class={`group block bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-lg transition-all duration-300 ${delayClass}`}
+              >
+                <div class="aspect-video overflow-hidden bg-gray-100 dark:bg-slate-700">
+                  <img
+                    src={heroImage}
+                    alt={post.title || '文章封面'}
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                </div>
+                <div class="p-6">
+                  <h2 class="text-base font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                    {post.title}
+                  </h2>
+                  {post.subtitle && (
+                    <p class="text-sm text-muted mt-1 line-clamp-2">{post.subtitle}</p>
+                  )}
+                  <p class="text-xs text-muted mt-2">
+                    {post.publishDate.toLocaleDateString('zh-CN', {
+                      year: 'numeric', month: 'long', day: 'numeric'
+                    })}
+                  </p>
+                  {tags.length > 0 && (
+                    <div class="flex flex-wrap gap-1.5 mt-2.5">
+                      {tags.map((tag) => (
+                        <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-primary/20">
+                          {tag.title}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </a>
+            );
+          })}
+        </div>
+
+        {totalPages > 1 && (
+          <div class="flex justify-center mt-8 gap-2 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <a
+                href={p === 1 ? '/blog' : `/blog/page/${p}`}
+                class={`
+                  px-3.5 py-1.5 rounded-md text-sm transition border
+                  ${p === currentPage
+                    ? 'bg-primary text-white border-primary cursor-default'
+                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 hover:border-primary hover:text-primary'}
+                `}
+              >
+                {p}
+              </a>
+            ))}
+          </div>
+        )}
+      </>
+    )}
+  </main>
+</PageLayout>

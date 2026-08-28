@@ -1,34 +1,28 @@
 site:
-  name: AstroWind
-  site: 'https://astrowind.vercel.app'
+  name: 二咪的四时漫录
+  site: 'https://2me.fun'
   base: '/'
   trailingSlash: false
-
-  googleSiteVerificationId: orcPxI47GSa-cRvY11tUe6iGg2IO_RPvnA1q95iEM3M
 
 # Default SEO metadata
 metadata:
   title:
-    default: AstroWind
-    template: '%s — AstroWind'
-  description: "\U0001F680 Suitable for Startups, Small Business, Sass Websites, Professional Portfolios, Marketing Websites, Landing Pages & Blogs."
+    default: 二咪的四时漫录
+    template: '%s — 二咪的四时漫录'
+  description: "一只懒猫记录生活点滴的笔记簿，分享一些有趣的事情，也许会有一些技术文章和实用工具。"
   robots:
     index: true
     follow: true
   openGraph:
-    site_name: AstroWind
+    site_name: 二咪的四时漫录
     images:
       - url: '~/assets/images/default.png'
         width: 1200
         height: 628
     type: website
-  twitter:
-    handle: '@arthelokyo'
-    site: '@arthelokyo'
-    cardType: summary_large_image
 
 i18n:
-  language: en
+  language: zh-cn
   textDirection: ltr
 
 apps:
@@ -62,11 +56,6 @@ apps:
 
     isRelatedPostsEnabled: true
     relatedPostsCount: 4
-
-analytics:
-  vendors:
-    googleAnalytics:
-      id: null # or "G-XXXXXXXXXX"
 
 ui:
   theme: 'system' # Values: "system" | "light" | "dark" | "light:only" | "dark:only"

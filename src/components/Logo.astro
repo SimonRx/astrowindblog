@@ -1,9 +1,12 @@
 ---
-import { SITE } from 'astrowind:config';
+// 顶部 logo 仅显示头像（站点名不再展示在顶栏）
 ---
 
-<span
-  class="self-center ml-2 rtl:ml-0 rtl:mr-2 text-2xl md:text-xl font-bold text-gray-900 whitespace-nowrap dark:text-white"
->
-  🚀 {SITE?.name}
-</span>
+<img
+  src="/avatar.jpg"
+  alt="首页"
+  class="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-slate-700"
+  loading="lazy"
+  width="32"
+  height="32"
+/>

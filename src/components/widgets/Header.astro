@@ -45,6 +45,18 @@ const {
 } = Astro.props;
 
 const currentPath = `/${trimSlash(new URL(Astro.url).pathname)}`;
+
+// 面包屑：一级路由映射中文标签，最多显示「首页 + 最近 2 段」，中间用 … 折叠
+const sectionLabels: Record<string, string> = { blog: '博客', tools: '工具', about: '关于' };
+const pathSegments = currentPath === '/' ? [] : currentPath.split('/').filter(Boolean);
+const allCrumbs = pathSegments.map((seg, i) => ({
+  href: '/' + pathSegments.slice(0, i + 1).join('/'),
+  label: sectionLabels[seg] || seg,
+}));
+const crumbs =
+  allCrumbs.length <= 2
+    ? allCrumbs
+    : [allCrumbs[0], { href: '', label: '…' }, ...allCrumbs.slice(allCrumbs.length - 2)];
 ---
 
 <aw-header transition:persist="header">
@@ -72,14 +84,45 @@ const currentPath = `/${trimSlash(new URL(Astro.url).pathname)}`;
       ]}
     >
       <div class:list={[{ 'mr-auto rtl:mr-0 rtl:ml-auto': position === 'right' }, 'flex justify-between']}>
-        <a class="flex items-center" href={getHomePermalink()}>
-          <Logo />
-        </a>
+        <div class="flex items-center min-w-0">
+          <a class="flex items-center" href={getHomePermalink()}>
+            <Logo />
+          </a>
+          <nav
+            data-aw-breadcrumb
+            aria-label="当前位置"
+            class="flex items-center min-w-0 text-sm text-muted ml-2 rtl:ml-0 rtl:mr-2"
+          >
+            <a href="/" class="flex-none whitespace-nowrap hover:text-link dark:hover:text-white transition-colors">
+              首页
+            </a>
+            {
+              crumbs.map((c) => (
+                <>
+                  <span class="text-muted/40 mx-1.5 flex-none select-none" aria-hidden="true">
+                    /
+                  </span>
+                  {c.href ? (
+                    <a
+                      href={c.href}
+                      class="whitespace-nowrap max-w-[10rem] truncate hover:text-link dark:hover:text-white transition-colors"
+                    >
+                      {c.label}
+                    </a>
+                  ) : (
+                    <span class="flex-none select-none">{c.label}</span>
+                  )}
+                </>
+              ))
+            }
+          </nav>
+        </div>
         <div class="flex items-center md:hidden">
           <ToggleMenu />
         </div>
       </div>
       <nav
+        data-aw-main-nav
         class="items-center w-full md:w-auto hidden md:flex md:mx-5 text-default overflow-y-auto overflow-x-hidden md:overflow-visible md:justify-self-center"
         aria-label="Main navigation"
       >
@@ -185,12 +228,13 @@ const currentPath = `/${trimSlash(new URL(Astro.url).pathname)}`;
     private onPageLoad = () => {
       this.updateActiveLinks();
       this.closeOpenDropdown();
+      this.updateBreadcrumb();
     };
 
     connectedCallback() {
       const header = this.querySelector<HTMLElement>('#header');
       const toggle = this.querySelector<HTMLElement>('[data-aw-toggle-menu]');
-      const nav = this.querySelector<HTMLElement>('#header nav');
+      const nav = this.querySelector<HTMLElement>('[data-aw-main-nav]');
       const lastChild = this.querySelector<HTMLElement>('#header > div > div:last-child');
 
       // The header persists across view transitions (transition:persist), so
@@ -278,6 +322,51 @@ const currentPath = `/${trimSlash(new URL(Astro.url).pathname)}`;
       const current = norm(window.location.pathname);
       this.querySelectorAll<HTMLAnchorElement>('nav a[href]').forEach((a) => {
         a.classList.toggle('aw-link-active', norm(new URL(a.href).pathname) === current);
+      });
+    }
+
+    // 客户端导航后重建面包屑（首页时清空，由 :empty 规则自动隐藏）
+    private updateBreadcrumb() {
+      const nav = this.querySelector<HTMLElement>('[data-aw-breadcrumb]');
+      if (!nav) return;
+      const labels: Record<string, string> = { blog: '博客', tools: '工具', about: '关于' };
+      const mkLink = (href: string, label: string, truncate: boolean) => {
+        const a = document.createElement('a');
+        a.href = href;
+        a.textContent = label;
+        a.className =
+          'whitespace-nowrap hover:text-link dark:hover:text-white transition-colors' +
+          (truncate ? ' max-w-[10rem] truncate' : ' flex-none');
+        return a;
+      };
+      const mkSep = () => {
+        const s = document.createElement('span');
+        s.className = 'text-muted/40 mx-1.5 flex-none select-none';
+        s.setAttribute('aria-hidden', 'true');
+        s.textContent = '/';
+        return s;
+      };
+
+      const t = '/' + window.location.pathname.replace(/^\/+|\/+$/g, '');
+      nav.textContent = '';
+      const segs = t.split('/').filter(Boolean);
+      const items = segs.map((seg, i) => ({
+        href: '/' + segs.slice(0, i + 1).join('/'),
+        label: labels[seg] || seg,
+      }));
+      const shown = items.length <= 2 ? items : [items[0], { href: '', label: '…' }, ...items.slice(items.length - 2)];
+
+      nav.appendChild(mkLink('/', '首页', false));
+      shown.forEach((c) => {
+        nav.appendChild(mkSep());
+        if (c.href) {
+          nav.appendChild(mkLink(c.href, c.label, true));
+        } else {
+          const s = document.createElement('span');
+          s.className = 'flex-none select-none';
+          s.textContent = c.label;
+          nav.appendChild(s);
+        }
       });
     }
   }

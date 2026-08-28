@@ -14,6 +14,7 @@ import compress from 'astro-compress';
 import type { AstroIntegration } from 'astro';
 
 import astrowind from './vendor/integration';
+import pagefind from 'astro-pagefind';
 
 import { readingTimeRemarkPlugin, responsiveTablesRehypePlugin } from './src/utils/frontmatter';
 
@@ -50,6 +51,7 @@ export default defineConfig({
 
   integrations: [
     sitemap(),
+    pagefind(),
     mdx(),
     icon({
       include: {
@@ -128,6 +130,11 @@ export default defineConfig({
       alias: {
         '~': path.resolve(__dirname, './src'),
       },
+    },
+    // FFmpeg wasm 通过运行时 URL（public/ffmpeg/）加载，不能交给 Vite 预打包，
+    // 否则开发模式会把 /ffmpeg/ffmpeg-core.js 当作源码导入而报错。
+    optimizeDeps: {
+      exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/core'],
     },
   },
 });

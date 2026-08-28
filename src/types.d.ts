@@ -13,6 +13,8 @@ export interface Post {
   updateDate?: Date;
 
   title: string;
+  /** Optional subtitle displayed below the title. */
+  subtitle?: string;
   /** Optional summary of post content. */
   excerpt?: string;
   image?: ImageMetadata | string;

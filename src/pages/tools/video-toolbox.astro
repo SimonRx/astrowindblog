@@ -1,0 +1,1297 @@
+---
+import PageLayout from '../../layouts/PageLayout.astro';
+import { Icon } from 'astro-icon/components';
+import 'cropperjs/dist/cropper.css';
+
+// 视频工具箱：工具串联条（选中项高亮），8 大核心功能
+const tools = [
+  { id: 'gif', label: '转 GIF', icon: 'tabler:gif', active: true },
+  { id: 'trim', label: '裁切片段', icon: 'tabler:scissors' },
+  { id: 'crop', label: '画面裁剪', icon: 'tabler:crop' },
+  { id: 'resize', label: '缩放', icon: 'tabler:aspect-ratio' },
+  { id: 'rotate', label: '旋转', icon: 'tabler:rotate' },
+  { id: 'speed', label: '变速', icon: 'tabler:gauge' },
+  { id: 'mute', label: '静音', icon: 'tabler:volume-3' },
+  { id: 'frames', label: '抽帧', icon: 'tabler:frame' },
+];
+
+const metadata = { title: '视频工具' };
+---
+
+<PageLayout metadata={metadata}>
+  <main class="max-w-3xl mx-auto px-4 py-8">
+    <!-- 标题 + 返回 -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <a
+          href="/tools"
+          class="inline-flex items-center text-sm text-muted hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        >
+          <Icon name="tabler:chevron-left" class="w-5 h-5" />
+          工具箱
+        </a>
+        <h1 class="text-2xl font-bold">视频工具</h1>
+      </div>
+      <span class="text-xs text-muted">工具串联 · 无缝接力</span>
+    </div>
+
+    <!-- 工具串联条 -->
+    <div class="flex gap-1 overflow-x-auto pb-2 px-1 -mx-1 border-b border-gray-200 dark:border-slate-700 mb-4">
+      {
+        tools.map((t) => (
+          <button
+            type="button"
+            data-tool={t.id}
+            class={`flex flex-col items-center justify-center gap-1 min-w-[3.5rem] px-2 py-1.5 rounded-md text-[11px] leading-tight transition-colors ${
+              t.active
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+                : 'text-muted hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-slate-100'
+            }`}
+          >
+            <Icon name={t.icon} class="w-5 h-5" />
+            <span>{t.label}</span>
+          </button>
+        ))
+      }
+    </div>
+
+    <!-- 上传区（未上传时显示） -->
+    <div id="upload-wrap">
+      <label
+        for="file-input"
+        id="upload-area"
+        class="block border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer"
+      >
+        <Icon name="tabler:video" class="w-10 h-10 mx-auto text-muted mb-2" />
+        <p class="text-muted">点击或拖拽视频到此处上传</p>
+        <input type="file" id="file-input" accept="video/mp4,video/webm,video/ogg,video/quicktime" class="hidden" />
+      </label>
+      <p class="text-xs text-muted mt-2">所有处理均在浏览器本地完成，视频不会上传服务器。</p>
+    </div>
+
+    <!-- 预览 + 信息行（上传后显示） -->
+    <div id="preview-wrap" class="hidden">
+      <div class="bg-black rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
+        <video id="preview-video" class="w-full aspect-video object-contain" controls playsinline muted></video>
+      </div>
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted mt-3">
+        <span id="info-name">文件名: -</span>
+        <span>·</span>
+        <span id="info-size">大小: -</span>
+        <span>·</span>
+        <span id="info-res">分辨率: -</span>
+        <span>·</span>
+        <span id="info-type">类型: -</span>
+        <span>·</span>
+        <span id="info-duration">时长: -</span>
+      </div>
+    </div>
+
+    <!-- 参数面板容器（上传后显示） -->
+    <div
+      id="tool-panel"
+      class="hidden mt-4 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-4"
+    >
+      <!-- 转 GIF -->
+      <div data-panel="gif" class="space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:gif" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">转 GIF</span>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="gif-start">开始（秒）</label>
+            <input
+              type="number"
+              id="gif-start"
+              min="0"
+              step="0.1"
+              value="0"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="gif-end">结束（秒）</label>
+            <input
+              type="number"
+              id="gif-end"
+              min="0"
+              step="0.1"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="gif-fps">帧率（fps）</label>
+            <input
+              type="number"
+              id="gif-fps"
+              min="1"
+              max="30"
+              step="1"
+              value="10"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="gif-width">输出宽度（px）</label>
+          <input
+            type="number"
+            id="gif-width"
+            min="64"
+            max="1280"
+            step="16"
+            value="480"
+            class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <!-- 裁切 -->
+      <div data-panel="trim" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:scissors" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">裁切片段</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="trim-start">开始（秒）</label>
+            <input
+              type="number"
+              id="trim-start"
+              min="0"
+              step="0.1"
+              value="0"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="trim-end">结束（秒）</label>
+            <input
+              type="number"
+              id="trim-end"
+              min="0"
+              step="0.1"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+        <p class="text-xs text-amber-600 dark:text-amber-400">首次处理需加载 FFmpeg 引擎（约 30MB），请稍候。</p>
+      </div>
+
+      <!-- 画面裁剪（ezgif 风格） -->
+      <div data-panel="crop" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:crop" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">画面裁剪</span>
+        </div>
+
+        <!-- 预览底图 + 可拖拽裁剪框 -->
+        <div class="flex items-center gap-3">
+          <label class="block text-xs text-muted shrink-0" for="crop-frame-time">预览时间（秒）</label>
+          <input
+            type="number"
+            id="crop-frame-time"
+            min="0"
+            step="0.1"
+            value="0"
+            class="w-32 rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+          />
+          <p class="text-xs text-muted">拖动下方的裁剪框选取区域，数值框会同步更新</p>
+        </div>
+        <div id="crop-container" class="max-h-[24rem] w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-slate-700">
+          <img id="crop-image" alt="画面裁剪预览" />
+        </div>
+
+        <!-- 四个数值框 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-left">Left</label>
+            <input
+              type="number"
+              id="crop-left"
+              min="0"
+              step="1"
+              value="0"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-top">Top</label>
+            <input
+              type="number"
+              id="crop-top"
+              min="0"
+              step="1"
+              value="0"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-width">Width</label>
+            <input
+              type="number"
+              id="crop-width"
+              min="1"
+              step="1"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-height">Height</label>
+            <input
+              type="number"
+              id="crop-height"
+              min="1"
+              step="1"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <hr class="border-gray-200 dark:border-slate-700" />
+
+        <!-- Lock aspect ratio -->
+        <div class="flex items-center gap-3">
+          <Icon name="tabler:lock" class="w-4 h-4 text-muted" />
+          <label class="text-sm shrink-0" for="crop-aspect">Lock aspect ratio</label>
+          <select
+            id="crop-aspect"
+            class="rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="no">No</option>
+            <option value="yes">Yes（原比例）</option>
+            <option value="1">1:1</option>
+            <option value="16 / 9">16:9</option>
+            <option value="4 / 3">4:3</option>
+            <option value="3 / 4">3:4</option>
+            <option value="9 / 16">9:16</option>
+          </select>
+        </div>
+
+        <!-- Output format -->
+        <div class="flex items-center gap-3">
+          <Icon name="tabler:settings" class="w-4 h-4 text-muted" />
+          <label class="text-sm shrink-0" for="crop-output">Output format and encoding</label>
+          <select
+            id="crop-output"
+            class="rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="mp4">MP4</option>
+            <option value="webm">WebM</option>
+          </select>
+        </div>
+
+        <!-- Don't scale large videos -->
+        <label class="flex items-center gap-1.5 text-sm text-muted cursor-pointer">
+          <input type="checkbox" id="crop-no-scale" class="rounded" />
+          Don't scale large videos
+        </label>
+        <p class="text-xs text-muted">此选项仅影响预览显示，不影响裁剪结果；裁剪需重新编码画面。</p>
+      </div>
+
+      <!-- 缩放 -->
+      <div data-panel="resize" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:aspect-ratio" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">缩放 / 压缩</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="resize-width">宽（px，留空自动）</label>
+            <input
+              type="number"
+              id="resize-width"
+              min="16"
+              step="2"
+              placeholder="自动"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="resize-height">高（px，留空自动）</label>
+            <input
+              type="number"
+              id="resize-height"
+              min="16"
+              step="2"
+              placeholder="自动"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1"
+            >质量：<span id="resize-crf-value" class="font-semibold">23</span></label
+          >
+          <input type="range" id="resize-crf" min="18" max="40" value="23" class="w-full" />
+          <p class="text-xs text-muted mt-1">数值越小画质越好、文件越大</p>
+        </div>
+      </div>
+
+      <!-- 旋转 -->
+      <div data-panel="rotate" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:rotate" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">旋转 / 翻转</span>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="rotate-dir">方向</label>
+          <select
+            id="rotate-dir"
+            class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="cw90">顺时针 90°</option>
+            <option value="ccw90">逆时针 90°</option>
+            <option value="180">180°</option>
+            <option value="hflip">水平翻转</option>
+            <option value="vflip">垂直翻转</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 变速 -->
+      <div data-panel="speed" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:gauge" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">变速</span>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="speed-rate">倍速</label>
+          <select
+            id="speed-rate"
+            class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="0.5">0.5×（慢放）</option>
+            <option value="0.75">0.75×</option>
+            <option value="1.25">1.25×</option>
+            <option value="1.5" selected>1.5×</option>
+            <option value="2">2×（快放）</option>
+          </select>
+        </div>
+        <p class="text-xs text-muted">同步变速音画，无音轨的视频将报错（属正常）。</p>
+      </div>
+
+      <!-- 静音 -->
+      <div data-panel="mute" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:volume-3" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">静音</span>
+        </div>
+        <p class="text-sm text-muted">移除视频音轨，画面保持不变。</p>
+      </div>
+
+      <!-- 抽帧 -->
+      <div data-panel="frames" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:frame" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">抽帧（生成胶片长图）</span>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="frames-start">开始（秒）</label>
+            <input
+              type="number"
+              id="frames-start"
+              min="0"
+              step="0.1"
+              value="0"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="frames-count">帧数</label>
+            <input
+              type="number"
+              id="frames-count"
+              min="1"
+              max="60"
+              step="1"
+              value="8"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="frames-thumb">帧宽（px）</label>
+            <input
+              type="number"
+              id="frames-thumb"
+              min="64"
+              max="640"
+              step="16"
+              value="160"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+        <p class="text-xs text-muted">按时间均匀抽取 N 帧，横向拼接为一张 PNG。</p>
+      </div>
+    </div>
+
+    <!-- 状态 / 错误 -->
+    <div id="status" class="hidden text-sm text-blue-600 dark:text-blue-400 mt-3"></div>
+    <div id="error" class="hidden text-sm text-red-600 dark:text-red-400 mt-3"></div>
+
+    <!-- 进度条 -->
+    <div id="progress-wrap" class="hidden mt-3">
+      <div class="flex items-center justify-between mb-1">
+        <span id="progress-label" class="text-xs text-muted">处理中 0%</span>
+      </div>
+      <div class="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5">
+        <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- 处理按钮 -->
+    <div id="apply-wrap" class="hidden mt-4">
+      <button
+        id="apply-btn"
+        type="button"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        处理
+      </button>
+    </div>
+
+    <!-- 输出区 -->
+    <div id="output-wrap" class="hidden mt-6">
+      <h2 class="text-lg font-semibold mb-3">处理结果：</h2>
+      <div
+        class="bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 min-h-48 flex items-center justify-center overflow-hidden"
+      >
+        <img id="output-preview" class="hidden max-h-80 w-full object-contain" alt="处理结果" />
+        <video id="output-video" class="hidden max-h-80 w-full object-contain" controls playsinline muted></video>
+        <p id="output-empty" class="text-muted text-sm">处理后在此显示结果</p>
+      </div>
+      <p id="output-info" class="text-xs text-muted mt-2 hidden"></p>
+      <button
+        id="download-btn"
+        type="button"
+        disabled
+        class="mt-3 w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg transition-colors"
+      >
+        下载结果
+      </button>
+    </div>
+  </main>
+</PageLayout>
+
+<script>
+  import { GIFEncoder, quantize, applyPalette } from 'gifenc';
+  import Cropper from 'cropperjs';
+  import type { FFmpeg } from '@ffmpeg/ffmpeg';
+
+  const MAX_FRAMES = 300;
+
+  function formatDuration(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KB', 'MB', 'GB'];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)) - 1, units.length - 1);
+    return `${(bytes / Math.pow(1024, i + 1)).toFixed(2)} ${units[i]}`;
+  }
+
+  function initVideoToolbox(): void {
+    // 页面归属守卫：导航到其它页面后本页 DOM 不存在时直接跳过
+    if (!document.getElementById('tool-panel')) {
+      return;
+    }
+    const uploadWrap = document.getElementById('upload-wrap') as HTMLElement;
+    const uploadArea = document.getElementById('upload-area') as HTMLElement;
+    const fileInput = document.getElementById('file-input') as HTMLInputElement;
+    const previewWrap = document.getElementById('preview-wrap') as HTMLElement;
+    const previewVideo = document.getElementById('preview-video') as HTMLVideoElement;
+    const infoName = document.getElementById('info-name') as HTMLElement | null;
+    const infoSize = document.getElementById('info-size') as HTMLElement | null;
+    const infoRes = document.getElementById('info-res') as HTMLElement | null;
+    const infoType = document.getElementById('info-type') as HTMLElement | null;
+    const infoDuration = document.getElementById('info-duration') as HTMLElement | null;
+    const toolPanel = document.getElementById('tool-panel') as HTMLElement;
+    const statusEl = document.getElementById('status') as HTMLElement | null;
+    const errorEl = document.getElementById('error') as HTMLElement | null;
+    const progressWrap = document.getElementById('progress-wrap') as HTMLElement;
+    const progressLabel = document.getElementById('progress-label') as HTMLElement;
+    const progressBar = document.getElementById('progress-bar') as HTMLElement;
+    const applyBtn = document.getElementById('apply-btn') as HTMLButtonElement;
+    const applyWrap = document.getElementById('apply-wrap') as HTMLElement;
+    const outputWrap = document.getElementById('output-wrap') as HTMLElement;
+    const outputPreview = document.getElementById('output-preview') as HTMLImageElement;
+    const outputVideo = document.getElementById('output-video') as HTMLVideoElement;
+    const outputEmpty = document.getElementById('output-empty') as HTMLElement | null;
+    const outputInfo = document.getElementById('output-info') as HTMLElement | null;
+    const downloadBtn = document.getElementById('download-btn') as HTMLButtonElement;
+
+    const toolBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tool]'));
+    const panels = Array.from(document.querySelectorAll<HTMLElement>('[data-panel]'));
+
+    const show = (el: HTMLElement | null) => el?.classList.remove('hidden');
+    const hide = (el: HTMLElement | null) => el?.classList.add('hidden');
+
+    let videoFile: File | null = null;
+    let videoUrl: string | null = null;
+    let videoDuration = 0;
+    let outputBlob: Blob | null = null;
+    let outputUrl: string | null = null;
+    let outputName = '';
+    let processing = false;
+    let cancelled = false;
+    let activeTool = 'gif';
+    let ffmpeg: FFmpeg | null = null;
+    let ffmpegLoading = false;
+    let cropper: Cropper | null = null;
+    let cropAspectRatio: number | null = null; // null = 自由
+    let videoNaturalWidth = 0;
+    let videoNaturalHeight = 0;
+
+    // 各面板元素引用（在 init 中统一查询，非空）
+    const cropFrameTime = document.getElementById('crop-frame-time') as HTMLInputElement;
+    const cropImage = document.getElementById('crop-image') as HTMLImageElement;
+    const cropLeft = document.getElementById('crop-left') as HTMLInputElement;
+    const cropTop = document.getElementById('crop-top') as HTMLInputElement;
+    const cropWidth = document.getElementById('crop-width') as HTMLInputElement;
+    const cropHeight = document.getElementById('crop-height') as HTMLInputElement;
+    const cropAspect = document.getElementById('crop-aspect') as HTMLSelectElement;
+    const cropOutput = document.getElementById('crop-output') as HTMLSelectElement;
+
+    function setStatus(message: string): void {
+      if (!statusEl) return;
+      if (!message) {
+        hide(statusEl);
+        return;
+      }
+      statusEl.textContent = message;
+      show(statusEl);
+    }
+
+    function setError(message: string): void {
+      if (!errorEl) return;
+      if (!message) {
+        hide(errorEl);
+        return;
+      }
+      errorEl.textContent = message;
+      show(errorEl);
+    }
+
+    function setProgress(percent: number, label: string): void {
+      progressLabel.textContent = label;
+      progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    }
+
+    function revokeUrl(url: string | null): void {
+      if (url) URL.revokeObjectURL(url);
+    }
+
+    function parseRatio(expr: string): number {
+      const parts = expr.split('/').map((s) => parseFloat(s.trim()));
+      return parts.length === 2 && parts[0] > 0 && parts[1] > 0 ? parts[0] / parts[1] : NaN;
+    }
+
+    async function switchTool(id: string): Promise<void> {
+      activeTool = id;
+      toolBtns.forEach((btn) => {
+        const active = btn.dataset.tool === id;
+        btn.classList.toggle('bg-blue-100', active);
+        btn.classList.toggle('text-blue-700', active);
+        btn.classList.toggle('dark:bg-blue-500/20', active);
+        btn.classList.toggle('dark:text-blue-300', active);
+        btn.classList.toggle('text-muted', !active);
+        btn.classList.toggle('hover:bg-gray-100', !active);
+        btn.classList.toggle('dark:hover:bg-slate-700', !active);
+        btn.classList.toggle('hover:text-gray-900', !active);
+        btn.classList.toggle('dark:hover:text-slate-100', !active);
+      });
+      panels.forEach((p) => {
+        if (p.dataset.panel === id) show(p);
+        else hide(p);
+      });
+      if (id === 'crop') {
+        const time = Math.max(0, Number(cropFrameTime.value));
+        await seekVideo(previewVideo, Math.min(time, videoDuration)).then(() => initCrop());
+      }
+    }
+
+    function showOutput(blob: Blob, name: string, mime: string): void {
+      revokeUrl(outputUrl);
+      outputBlob = blob;
+      outputName = name;
+      outputUrl = URL.createObjectURL(blob);
+      const isVideo = mime.startsWith('video/');
+      if (isVideo) {
+        hide(outputPreview);
+        outputVideo.src = outputUrl;
+        show(outputVideo);
+      } else {
+        hide(outputVideo);
+        outputPreview.src = outputUrl;
+        show(outputPreview);
+      }
+      hide(outputEmpty);
+      if (outputInfo) {
+        outputInfo.textContent = `大小：${formatSize(blob.size)}`;
+        show(outputInfo);
+      }
+      show(outputWrap);
+      downloadBtn.disabled = false;
+    }
+
+    function seekVideo(video: HTMLVideoElement, time: number): Promise<void> {
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          video.removeEventListener('seeked', onSeeked);
+          clearTimeout(timer);
+          resolve();
+        };
+        const onSeeked = () => requestAnimationFrame(finish);
+        const timer = setTimeout(finish, 1000);
+        video.addEventListener('seeked', onSeeked);
+        video.currentTime = time;
+      });
+    }
+
+    function drawVideoFrame(video: HTMLVideoElement, w: number, h: number): CanvasRenderingContext2D {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+      ctx.drawImage(video, 0, 0, w, h);
+      return ctx;
+    }
+
+    // ---- 转 GIF（gifenc：全局调色板 + 帧间差分） ----
+    async function handleToGif(): Promise<void> {
+      if (!videoFile || !videoUrl) return;
+      const gifStart = document.getElementById('gif-start') as HTMLInputElement;
+      const gifEnd = document.getElementById('gif-end') as HTMLInputElement;
+      const gifFps = document.getElementById('gif-fps') as HTMLInputElement;
+      const gifWidth = document.getElementById('gif-width') as HTMLInputElement;
+      const fps = Number(gifFps.value);
+      const width = Number(gifWidth.value);
+      const start = Math.max(0, Number(gifStart.value));
+      const end = Math.min(videoDuration, Number(gifEnd.value));
+      if (end <= start) throw new Error('结束时间必须大于开始时间。');
+      const framesCount = Math.max(1, Math.round((end - start) * fps));
+      if (framesCount > MAX_FRAMES)
+        throw new Error(`需要生成 ${framesCount} 帧，超过上限（${MAX_FRAMES}）。请降低帧率或缩短时间范围。`);
+
+      const vw = Math.floor(previewVideo.videoWidth);
+      const vh = Math.floor(previewVideo.videoHeight);
+      if (!vw || !vh) throw new Error('无法获取视频尺寸。');
+      const outWidth = Math.max(1, Math.round(width));
+      const outHeight = Math.max(1, Math.round((vh / vw) * outWidth));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = outWidth;
+      canvas.height = outHeight;
+      const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+
+      // 预留 1 个调色板索引（255）作为透明差分标记，因此真实颜色最多 255 种
+      const MAX_COLORS = 255;
+      const transparentIndex = 255;
+
+      const gif = GIFEncoder({ auto: true });
+      const delay = Math.round(1000 / fps);
+
+      let palette: number[][] | null = null;
+      let prevIndex: Uint8Array | null = null;
+
+      for (let i = 0; i < framesCount; i++) {
+        if (cancelled) throw new DOMException('已取消', 'AbortError');
+        setProgress((i / framesCount) * 100, `正在解码... 第 ${i + 1} / ${framesCount} 帧`);
+        await seekVideo(previewVideo, Math.min(start + i / fps, end));
+        ctx.clearRect(0, 0, outWidth, outHeight);
+        ctx.drawImage(previewVideo, 0, 0, outWidth, outHeight);
+        const rgba = ctx.getImageData(0, 0, outWidth, outHeight).data;
+
+        if (i === 0) {
+          palette = quantize(rgba, MAX_COLORS);
+          palette.push([0, 0, 0]); // 追加透明标记色
+        }
+        const index = applyPalette(rgba, palette as number[][]);
+
+        if (i === 0) {
+          gif.writeFrame(index, outWidth, outHeight, {
+            palette: palette as number[][],
+            delay,
+            repeat: 0,
+            dispose: 1,
+            transparent: true,
+            transparentIndex,
+          });
+        } else {
+          // 帧间差分：与上一帧相同的像素置为透明，仅编码变化的区域；
+          // dispose:1（不清理画布）让透明像素继续显示上一帧内容，大幅减小体积。
+          const prev = prevIndex as Uint8Array;
+          const diff = new Uint8Array(index.length);
+          for (let p = 0; p < index.length; p++) {
+            diff[p] = prev[p] === index[p] ? transparentIndex : index[p];
+          }
+          gif.writeFrame(diff, outWidth, outHeight, {
+            delay,
+            repeat: 0,
+            dispose: 1,
+            transparent: true,
+            transparentIndex,
+          });
+        }
+        prevIndex = index;
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      if (cancelled) throw new DOMException('已取消', 'AbortError');
+
+      gif.finish();
+      const bytes = gif.bytes();
+      const buffer = new ArrayBuffer(bytes.byteLength);
+      new Uint8Array(buffer).set(bytes);
+      const blob = new Blob([buffer], { type: 'image/gif' });
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}.gif`, 'image/gif');
+    }
+
+    // ---- FFmpeg 引擎（动态加载，仅在使用 FFmpeg 功能时下载 JS；ESM core 运行时拼接 URL） ----
+    async function getFfmpeg(): Promise<FFmpeg> {
+      if (ffmpeg && ffmpeg.loaded) return ffmpeg;
+      if (!ffmpeg) {
+        // 动态 import：把 @ffmpeg/ffmpeg 拆成独立 chunk，不进首包
+        const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+        ffmpeg = new FFmpeg();
+        ffmpeg.on('log', ({ message }: { message: string }) => {
+          if (message.includes('error') || message.includes('Error')) setError(`FFmpeg：${message}`);
+        });
+        ffmpeg.on('progress', ({ progress }: { progress: number }) => {
+          setProgress(progress * 100, `正在处理... ${Math.round(progress * 100)}%`);
+        });
+      }
+      if (ffmpegLoading) throw new Error('FFmpeg 正在加载，请稍候。');
+      ffmpegLoading = true;
+      try {
+        setStatus('正在加载 FFmpeg 引擎（首次约 30MB）...');
+        // 运行时动态拼接，避免 Vite 静态分析 public 路径
+        const base = window.location.origin + '/ffmpeg/';
+        await ffmpeg.load({
+          coreURL: base + 'ffmpeg-core.js',
+          wasmURL: base + 'ffmpeg-core.wasm',
+        });
+        setStatus('');
+        return ffmpeg;
+      } finally {
+        ffmpegLoading = false;
+      }
+    }
+
+    async function runFfmpeg(inputExt: string, args: string[], outExt = 'mp4'): Promise<{ blob: Blob; mime: string }> {
+      const engine = await getFfmpeg();
+      const inName = 'input' + inputExt;
+      const outName = 'output.' + outExt;
+      await engine.writeFile(inName, new Uint8Array(await videoFile!.arrayBuffer()));
+      const code = await engine.exec(args);
+      const data = await engine.readFile(outName);
+      await engine.deleteFile(inName).catch(() => {});
+      await engine.deleteFile(outName).catch(() => {});
+      if (code !== 0) throw new Error('FFmpeg 处理失败。');
+      const bytes = data instanceof Uint8Array ? data : new TextEncoder().encode(String(data));
+      const buffer = new ArrayBuffer(bytes.byteLength);
+      new Uint8Array(buffer).set(bytes);
+      return {
+        blob: new Blob([buffer], { type: outExt === 'mp4' ? 'video/mp4' : 'application/octet-stream' }),
+        mime: outExt === 'mp4' ? 'video/mp4' : 'application/octet-stream',
+      };
+    }
+
+    const inputExt = () => (videoFile?.name.match(/\.[^.]+$/)?.[0] || '.mp4').toLowerCase();
+
+    // ---- 裁切 ----
+    async function handleTrim(): Promise<void> {
+      if (!videoFile) return;
+      const trimStart = document.getElementById('trim-start') as HTMLInputElement;
+      const trimEnd = document.getElementById('trim-end') as HTMLInputElement;
+      const start = Math.max(0, Number(trimStart.value));
+      const end = Math.min(videoDuration, Number(trimEnd.value));
+      if (end <= start) throw new Error('结束时间必须大于开始时间。');
+      const duration = end - start;
+      const { blob } = await runFfmpeg(inputExt(), [
+        '-ss',
+        start.toFixed(3),
+        '-t',
+        duration.toFixed(3),
+        '-i',
+        'input' + inputExt(),
+        '-c:v',
+        'libx264',
+        '-crf',
+        '18',
+        '-preset',
+        'fast',
+        '-c:a',
+        'aac',
+        '-movflags',
+        '+faststart',
+        'output.mp4',
+      ]);
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}-trim.mp4`, 'video/mp4');
+    }
+
+    // ---- 缩放 ----
+    async function handleResize(): Promise<void> {
+      if (!videoFile) return;
+      const wEl = document.getElementById('resize-width') as HTMLInputElement;
+      const hEl = document.getElementById('resize-height') as HTMLInputElement;
+      const crfEl = document.getElementById('resize-crf') as HTMLInputElement;
+      const w = wEl.value ? Number(wEl.value) : 0;
+      const h = hEl.value ? Number(hEl.value) : 0;
+      if (!w && !h) throw new Error('请至少填写宽或高。');
+      let scale: string;
+      if (w && h) scale = `scale=${w}:${h}`;
+      else if (w) scale = `scale=${w}:-2`;
+      else scale = `scale=-2:${h}`;
+      const crf = Number(crfEl.value);
+      const { blob } = await runFfmpeg(inputExt(), [
+        '-i',
+        'input' + inputExt(),
+        '-vf',
+        scale,
+        '-c:v',
+        'libx264',
+        '-crf',
+        String(crf),
+        '-preset',
+        'fast',
+        '-c:a',
+        'aac',
+        '-movflags',
+        '+faststart',
+        'output.mp4',
+      ]);
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}-resize.mp4`, 'video/mp4');
+    }
+
+    // ---- 旋转 ----
+    async function handleRotate(): Promise<void> {
+      if (!videoFile) return;
+      const dirEl = document.getElementById('rotate-dir') as HTMLSelectElement;
+      const dir = dirEl.value;
+      const filterMap: Record<string, string> = {
+        cw90: 'transpose=1',
+        ccw90: 'transpose=2',
+        180: 'transpose=2,transpose=2',
+        hflip: 'hflip',
+        vflip: 'vflip',
+      };
+      const { blob } = await runFfmpeg(inputExt(), [
+        '-i',
+        'input' + inputExt(),
+        '-vf',
+        filterMap[dir],
+        '-c:v',
+        'libx264',
+        '-crf',
+        '18',
+        '-preset',
+        'fast',
+        '-c:a',
+        'aac',
+        '-movflags',
+        '+faststart',
+        'output.mp4',
+      ]);
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}-rotate.mp4`, 'video/mp4');
+    }
+
+    // ---- 变速 ----
+    async function handleSpeed(): Promise<void> {
+      if (!videoFile) return;
+      const rateEl = document.getElementById('speed-rate') as HTMLSelectElement;
+      const rate = Number(rateEl.value);
+      const { blob } = await runFfmpeg(inputExt(), [
+        '-i',
+        'input' + inputExt(),
+        '-vf',
+        `setpts=PTS/${rate}`,
+        '-af',
+        `atempo=${rate}`,
+        '-c:v',
+        'libx264',
+        '-crf',
+        '18',
+        '-preset',
+        'fast',
+        '-c:a',
+        'aac',
+        '-movflags',
+        '+faststart',
+        'output.mp4',
+      ]);
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}-speed.mp4`, 'video/mp4');
+    }
+
+    // ---- 静音 ----
+    async function handleMute(): Promise<void> {
+      if (!videoFile) return;
+      const { blob } = await runFfmpeg(inputExt(), [
+        '-i',
+        'input' + inputExt(),
+        '-an',
+        '-c:v',
+        'libx264',
+        '-crf',
+        '18',
+        '-preset',
+        'fast',
+        '-movflags',
+        '+faststart',
+        'output.mp4',
+      ]);
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}-mute.mp4`, 'video/mp4');
+    }
+
+    // ---- 抽帧（canvas，生成胶片长图） ----
+    async function handleFrames(): Promise<void> {
+      if (!videoFile || !videoUrl) return;
+      const fsEl = document.getElementById('frames-start') as HTMLInputElement;
+      const fcEl = document.getElementById('frames-count') as HTMLInputElement;
+      const ftEl = document.getElementById('frames-thumb') as HTMLInputElement;
+      const start = Math.max(0, Number(fsEl.value));
+      const count = Math.min(60, Math.max(1, Math.round(Number(fcEl.value))));
+      const thumbW = Math.round(Number(ftEl.value));
+      const span = videoDuration - start;
+      const vw = Math.floor(previewVideo.videoWidth);
+      const vh = Math.floor(previewVideo.videoHeight);
+      if (!vw || !vh) throw new Error('无法获取视频尺寸。');
+      const thumbH = Math.max(1, Math.round((vh / vw) * thumbW));
+
+      const sheet = document.createElement('canvas');
+      sheet.width = thumbW * count;
+      sheet.height = thumbH;
+      const sctx = sheet.getContext('2d') as CanvasRenderingContext2D;
+
+      for (let i = 0; i < count; i++) {
+        if (cancelled) throw new DOMException('已取消', 'AbortError');
+        setProgress((i / count) * 100, `正在抽取... 第 ${i + 1} / ${count} 帧`);
+        const time = count === 1 ? start : start + (i / (count - 1)) * span;
+        await seekVideo(previewVideo, Math.min(time, videoDuration));
+        const frame = drawVideoFrame(previewVideo, thumbW, thumbH);
+        sctx.drawImage(frame.canvas, i * thumbW, 0);
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      const blob = await new Promise<Blob | null>((resolve) => sheet.toBlob((b) => resolve(b), 'image/png'));
+      if (!blob) throw new Error('抽帧生成失败。');
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}-frames.png`, 'image/png');
+    }
+
+    // ---- 画面裁剪（FFmpeg crop filter） ----
+    async function handleCrop(): Promise<void> {
+      if (!videoFile) return;
+      if (!videoNaturalWidth || !videoNaturalHeight) throw new Error('无法获取视频尺寸。');
+      // 从输入框读取（原始像素坐标），并做约束
+      const x = Math.max(0, Math.round(Number(cropLeft.value) || 0));
+      const y = Math.max(0, Math.round(Number(cropTop.value) || 0));
+      const w = Math.max(1, Math.round(Number(cropWidth.value) || videoNaturalWidth - x));
+      const h = Math.max(1, Math.round(Number(cropHeight.value) || videoNaturalHeight - y));
+      if (x + w > videoNaturalWidth) throw new Error('裁剪区域超出视频宽度。');
+      if (y + h > videoNaturalHeight) throw new Error('裁剪区域超出视频高度。');
+      // FFmpeg crop 的 x/y 要求偶数
+      const cx = Math.floor(x / 2) * 2;
+      const cy = Math.floor(y / 2) * 2;
+      const cw = Math.floor(w / 2) * 2;
+      const ch = Math.floor(h / 2) * 2;
+      if (!cw || !ch) throw new Error('裁剪尺寸过小。');
+
+      const format = cropOutput.value;
+      const vf = `crop=${cw}:${ch}:${cx}:${cy}`;
+      const outArgs =
+        format === 'webm'
+          ? ['-c:v', 'libvpx-vp9', '-b:v', '1M', '-c:a', 'libopus', '-movflags', '+faststart', 'output.webm']
+          : [
+              '-c:v',
+              'libx264',
+              '-crf',
+              '18',
+              '-preset',
+              'fast',
+              '-c:a',
+              'aac',
+              '-movflags',
+              '+faststart',
+              'output.mp4',
+            ];
+      const { blob } = await runFfmpeg(inputExt(), ['-i', 'input' + inputExt(), '-vf', vf, ...outArgs], format);
+      const base = videoFile.name.replace(/\.[^.]+$/, '');
+      showOutput(blob, `${base}-crop.${format}`, format === 'webm' ? 'video/webm' : 'video/mp4');
+    }
+
+    // 初始化画面裁剪预览：把视频某一帧画到底图，并挂载 cropper
+    function initCrop(): void {
+      if (!cropImage) return;
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+      // 生成视频帧缩略图作为可框选底图
+      const vw = videoNaturalWidth;
+      const vh = videoNaturalHeight;
+      if (!vw || !vh) return;
+      const scale = Math.min(1, 1600 / Math.max(vw, vh));
+      const previewW = Math.max(1, Math.round(vw * scale));
+      const previewH = Math.max(1, Math.round(vh * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = previewW;
+      canvas.height = previewH;
+      const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+      ctx.drawImage(previewVideo, 0, 0, previewW, previewH);
+      cropImage.src = canvas.toDataURL('image/png');
+      cropImage.onload = () => {
+        const natW = cropImage.naturalWidth;
+        const natH = cropImage.naturalHeight;
+        if (!natW || !natH) return;
+        // 默认裁剪框：画面中部 80%
+        cropper = new Cropper(cropImage, {
+          viewMode: 1,
+          dragMode: 'move',
+          autoCropArea: 0.8,
+          aspectRatio: cropAspectRatio ?? NaN,
+          background: false,
+          ready: () => {
+            cropper?.setData({ x: natW * 0.1, y: natH * 0.1, width: natW * 0.8, height: natH * 0.8 });
+            syncCropFromCropper();
+          },
+        });
+        cropImage.addEventListener('crop', () => syncCropFromCropper());
+      };
+      if (cropImage.complete && cropImage.naturalWidth) {
+        cropImage.dispatchEvent(new Event('load'));
+      }
+    }
+
+    // cropper -> 输入框：cropper 坐标基于底图（显示尺寸），需换算回视频原始像素
+    function syncCropFromCropper(): void {
+      if (!cropper) return;
+      const data = cropper.getData();
+      const iw = cropImage.naturalWidth || videoNaturalWidth;
+      const ih = cropImage.naturalHeight || videoNaturalHeight;
+      const scaleX = videoNaturalWidth / iw;
+      const scaleY = videoNaturalHeight / ih;
+      cropLeft.value = String(Math.max(0, Math.round(data.x * scaleX)));
+      cropTop.value = String(Math.max(0, Math.round(data.y * scaleY)));
+      cropWidth.value = String(Math.max(1, Math.round(data.width * scaleX)));
+      cropHeight.value = String(Math.max(1, Math.round(data.height * scaleY)));
+    }
+
+    // 输入框 -> cropper：把原始像素坐标换算回底图坐标
+    function syncCropperFromInput(): void {
+      if (!cropper) return;
+      const iw = cropImage.naturalWidth || videoNaturalWidth;
+      const ih = cropImage.naturalHeight || videoNaturalHeight;
+      const scaleX = iw / videoNaturalWidth;
+      const scaleY = ih / videoNaturalHeight;
+      const x = (Number(cropLeft.value) || 0) * scaleX;
+      const y = (Number(cropTop.value) || 0) * scaleY;
+      const w = (Number(cropWidth.value) || videoNaturalWidth) * scaleX;
+      const h = (Number(cropHeight.value) || videoNaturalHeight) * scaleY;
+      cropper.setData({ x, y, width: Math.max(1, w), height: Math.max(1, h) });
+    }
+
+    // ---- 分发 ----
+    async function apply(): Promise<void> {
+      if (!videoFile || processing) return;
+      setError('');
+      cancelled = false;
+      processing = true;
+      applyBtn.disabled = true;
+      downloadBtn.disabled = true;
+      show(progressWrap);
+      setProgress(0, '处理中 0%');
+      try {
+        if (activeTool === 'gif') await handleToGif();
+        else if (activeTool === 'trim') await handleTrim();
+        else if (activeTool === 'crop') await handleCrop();
+        else if (activeTool === 'resize') await handleResize();
+        else if (activeTool === 'rotate') await handleRotate();
+        else if (activeTool === 'speed') await handleSpeed();
+        else if (activeTool === 'mute') await handleMute();
+        else if (activeTool === 'frames') await handleFrames();
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          setStatus('已取消。');
+        } else {
+          const msg = err instanceof Error ? err.message : err !== null && err !== undefined ? String(err) : '未知错误';
+          setError(`处理失败：${msg}。`);
+        }
+      } finally {
+        processing = false;
+        applyBtn.disabled = false;
+        hide(progressWrap);
+        setStatus('');
+      }
+    }
+
+    // ---- 上传 ----
+    function loadVideo(file: File): Promise<void> {
+      return new Promise((resolve, reject) => {
+        revokeUrl(videoUrl);
+        videoFile = file;
+        outputBlob = null;
+        videoUrl = URL.createObjectURL(file);
+
+        let loaded = false;
+        const onMeta = () => {
+          if (loaded) return;
+          videoDuration = Number.isFinite(previewVideo.duration) ? previewVideo.duration : 0;
+        };
+        const onLoaded = () => {
+          if (loaded) return;
+          loaded = true;
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          if (loaded) return;
+          loaded = true;
+          cleanup();
+          reject(new Error('无法解码该视频，请尝试其他文件。'));
+        };
+        const cleanup = () => {
+          previewVideo.removeEventListener('loadedmetadata', onMeta);
+          previewVideo.removeEventListener('loadeddata', onLoaded);
+          previewVideo.removeEventListener('error', onError);
+          clearTimeout(timer);
+        };
+        const timer = setTimeout(() => {
+          if (loaded) return;
+          loaded = true;
+          cleanup();
+          reject(new Error('视频加载超时，请尝试其他文件。'));
+        }, 15000);
+        previewVideo.addEventListener('loadedmetadata', onMeta);
+        previewVideo.addEventListener('loadeddata', onLoaded);
+        previewVideo.addEventListener('error', onError);
+        previewVideo.src = videoUrl;
+        previewVideo.load();
+      });
+    }
+
+    async function handleFile(file: File | undefined): Promise<void> {
+      if (!file) return;
+      if (processing) throw new Error('正在处理，请等待当前任务完成。');
+      if (!file.type.startsWith('video/')) throw new Error('请选择有效的视频文件（MP4 / WebM / OGG 等）。');
+      setError('');
+      setStatus('');
+      await loadVideo(file);
+
+      if (infoName) infoName.textContent = `文件名: ${file.name}`;
+      if (infoSize) infoSize.textContent = `大小: ${formatSize(file.size)}`;
+      if (infoRes) infoRes.textContent = `分辨率: ${previewVideo.videoWidth}×${previewVideo.videoHeight}`;
+      if (infoType) infoType.textContent = `类型: ${file.type}`;
+      if (infoDuration) infoDuration.textContent = `时长: ${formatDuration(videoDuration)}`;
+
+      videoNaturalWidth = Math.floor(previewVideo.videoWidth);
+      videoNaturalHeight = Math.floor(previewVideo.videoHeight);
+
+      const gifEnd = document.getElementById('gif-end') as HTMLInputElement;
+      const trimEnd = document.getElementById('trim-end') as HTMLInputElement;
+      gifEnd.value = videoDuration.toFixed(1);
+      trimEnd.value = videoDuration.toFixed(1);
+
+      hide(uploadWrap);
+      show(previewWrap);
+      show(toolPanel);
+      show(applyWrap);
+      await switchTool(activeTool);
+    }
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) {
+        fileInput.value = '';
+        return;
+      }
+      try {
+        await handleFile(file);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '文件处理失败，请重试。');
+      } finally {
+        fileInput.value = '';
+      }
+    });
+
+    uploadArea.addEventListener('dragover', (e: DragEvent) => {
+      e.preventDefault();
+      uploadArea.classList.add('border-blue-500', 'dark:border-blue-400');
+    });
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('border-blue-500', 'dark:border-blue-400');
+    });
+    uploadArea.addEventListener('drop', async (e: DragEvent) => {
+      e.preventDefault();
+      uploadArea.classList.remove('border-blue-500', 'dark:border-blue-400');
+      const file = e.dataTransfer?.files?.[0];
+      if (file) {
+        try {
+          await handleFile(file);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : '文件处理失败，请重试。');
+        }
+      }
+    });
+
+    toolBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.tool;
+        if (id) void switchTool(id);
+      });
+    });
+
+    const resizeCrf = document.getElementById('resize-crf') as HTMLInputElement | null;
+    const resizeCrfValue = document.getElementById('resize-crf-value') as HTMLElement | null;
+    resizeCrf?.addEventListener('input', () => {
+      if (resizeCrfValue) resizeCrfValue.textContent = resizeCrf.value;
+    });
+
+    // ---- 画面裁剪：输入框 -> cropper 同步 ----
+    cropFrameTime?.addEventListener('change', () => {
+      if (activeTool === 'crop') {
+        void seekVideo(previewVideo, Math.min(Math.max(0, Number(cropFrameTime.value)), videoDuration)).then(() =>
+          initCrop()
+        );
+      }
+    });
+    cropLeft?.addEventListener('change', syncCropperFromInput);
+    cropTop?.addEventListener('change', syncCropperFromInput);
+    cropWidth?.addEventListener('change', syncCropperFromInput);
+    cropHeight?.addEventListener('change', syncCropperFromInput);
+    cropAspect?.addEventListener('change', () => {
+      const v = cropAspect.value;
+      cropAspectRatio = v === 'no' ? null : v === 'yes' ? videoNaturalWidth / videoNaturalHeight : parseRatio(v);
+      cropper?.setAspectRatio(cropAspectRatio ?? NaN);
+    });
+
+    applyBtn.addEventListener('click', apply);
+
+    downloadBtn.addEventListener('click', () => {
+      if (!outputBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(outputBlob);
+      a.download = outputName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  }
+
+  document.addEventListener('astro:page-load', initVideoToolbox);
+</script>

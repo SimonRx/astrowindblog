@@ -1,0 +1,892 @@
+﻿---
+import PageLayout from '../../layouts/PageLayout.astro';
+import { Icon } from 'astro-icon/components';
+import 'cropperjs/dist/cropper.css';
+
+// 图片工具箱：工具串联条（选中项高亮），5 大核心功能
+const tools = [
+  { id: 'crop', label: '裁切', icon: 'tabler:crop', active: true },
+  { id: 'compress', label: '压缩', icon: 'tabler:photo' },
+  { id: 'rotate', label: '旋转', icon: 'tabler:rotate' },
+  { id: 'resize', label: '缩放', icon: 'tabler:aspect-ratio' },
+  { id: 'convert', label: '格式转换', icon: 'tabler:file-arrow-right' },
+];
+
+const metadata = { title: '图片工具' };
+---
+
+<PageLayout metadata={metadata}>
+  <main class="max-w-3xl mx-auto px-4 py-8">
+    <!-- 标题 + 返回 -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <a
+          href="/tools"
+          class="inline-flex items-center text-sm text-muted hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        >
+          <Icon name="tabler:chevron-left" class="w-5 h-5" />
+          工具箱
+        </a>
+        <h1 class="text-2xl font-bold">图片工具</h1>
+      </div>
+      <span class="text-xs text-muted">工具串联 · 无缝接力</span>
+    </div>
+
+    <!-- 工具串联条 -->
+    <div class="flex gap-1 overflow-x-auto pb-2 px-1 -mx-1 border-b border-gray-200 dark:border-slate-700 mb-4">
+      {
+        tools.map((t) => (
+          <button
+            type="button"
+            data-tool={t.id}
+            class={`flex flex-col items-center justify-center gap-1 min-w-[3.5rem] px-2 py-1.5 rounded-md text-[11px] leading-tight transition-colors ${
+              t.active
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+                : 'text-muted hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-slate-100'
+            }`}
+          >
+            <Icon name={t.icon} class="w-5 h-5" />
+            <span>{t.label}</span>
+          </button>
+        ))
+      }
+    </div>
+
+    <!-- 上传区（未上传时显示） -->
+    <div id="upload-wrap">
+      <label
+        for="file-input"
+        id="upload-area"
+        class="block border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer"
+      >
+        <Icon name="tabler:photo" class="w-10 h-10 mx-auto text-muted mb-2" />
+        <p class="text-muted">点击或拖拽图片到此处上传</p>
+        <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" class="hidden" />
+      </label>
+      <p class="text-xs text-muted mt-2">所有处理均在浏览器本地完成，图片不会上传服务器。</p>
+    </div>
+
+    <!-- 预览 + 信息行（上传后显示） -->
+    <div id="preview-wrap" class="hidden">
+      <div
+        class="bg-gray-100 dark:bg-slate-700 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700"
+      >
+        <img id="preview-image" class="w-full max-h-80 object-contain" alt="原图预览" />
+      </div>
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted mt-3">
+        <span id="info-name">文件名: -</span>
+        <span>·</span>
+        <span id="info-size">大小: -</span>
+        <span>·</span>
+        <span id="info-res">分辨率: -</span>
+        <span>·</span>
+        <span id="info-type">格式: -</span>
+      </div>
+    </div>
+
+    <!-- 参数面板容器（上传后显示） -->
+    <div
+      id="tool-panel"
+      class="hidden mt-4 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-4"
+    >
+      <!-- 裁切 -->
+      <div data-panel="crop" class="space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:crop" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">裁切</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="block text-xs text-muted shrink-0" for="aspect">比例</label>
+          <select
+            id="aspect"
+            class="rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="free">自由</option>
+            <option value="1">1:1 正方形</option>
+            <option value="4 / 3">4:3</option>
+            <option value="16 / 9">16:9</option>
+            <option value="3 / 4">3:4</option>
+            <option value="9 / 16">9:16</option>
+          </select>
+          <p class="text-xs text-muted">拖动选框选取区域，数值框同步更新</p>
+        </div>
+        <div id="crop-container" class="max-h-[24rem] w-full overflow-hidden rounded-lg bg-gray-100 dark:bg-slate-700">
+          <img id="crop-image" alt="待裁切图片" />
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-left">Left</label>
+            <input
+              type="number"
+              id="crop-left"
+              min="0"
+              step="1"
+              value="0"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-top">Top</label>
+            <input
+              type="number"
+              id="crop-top"
+              min="0"
+              step="1"
+              value="0"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-width">Width</label>
+            <input
+              type="number"
+              id="crop-width"
+              min="1"
+              step="1"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-height">Height</label>
+            <input
+              type="number"
+              id="crop-height"
+              min="1"
+              step="1"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+        <hr class="border-gray-200 dark:border-slate-700" />
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="crop-format">输出格式</label>
+            <select
+              id="crop-format"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+            >
+              <option value="png">PNG（无损）</option>
+              <option value="jpeg">JPG</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1"
+              >质量（JPG/WebP）：<span id="crop-quality-value" class="font-semibold">90</span></label
+            >
+            <input type="range" id="crop-quality" min="10" max="100" value="90" class="w-full" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 压缩 -->
+      <div data-panel="compress" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:photo" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">压缩</span>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1"
+            >压缩质量：<span id="compress-quality-value" class="font-semibold">80%</span></label
+          >
+          <input type="range" id="compress-quality" min="10" max="100" value="80" class="w-full" />
+          <p id="compress-estimate" class="text-xs text-muted mt-2">上传后显示原图大小</p>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="compress-format">输出格式</label>
+          <select
+            id="compress-format"
+            class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="same">保持原格式</option>
+            <option value="jpeg">JPG</option>
+            <option value="webp">WebP</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 旋转 -->
+      <div data-panel="rotate" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:rotate" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">旋转 / 翻转</span>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="rotate-dir">方向</label>
+          <select
+            id="rotate-dir"
+            class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="cw90">顺时针 90°</option>
+            <option value="ccw90">逆时针 90°</option>
+            <option value="180">180°</option>
+            <option value="hflip">水平翻转</option>
+            <option value="vflip">垂直翻转</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="rotate-format">输出格式</label>
+          <select
+            id="rotate-format"
+            class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="png">PNG（无损）</option>
+            <option value="jpeg">JPG</option>
+            <option value="webp">WebP</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 缩放 -->
+      <div data-panel="resize" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:aspect-ratio" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">缩放</span>
+        </div>
+        <div class="flex items-center gap-5 text-sm">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="resize-mode" value="size" checked class="accent-blue-600" />
+            按尺寸
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="resize-mode" value="percent" class="accent-blue-600" />
+            按百分比
+          </label>
+        </div>
+        <div id="resize-size-mode" class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-muted mb-1" for="resize-width">宽（px，留空自动）</label>
+            <input
+              type="number"
+              id="resize-width"
+              min="1"
+              step="1"
+              placeholder="自动"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1" for="resize-height">高（px，留空自动）</label>
+            <input
+              type="number"
+              id="resize-height"
+              min="1"
+              step="1"
+              placeholder="自动"
+              class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>
+        <div id="resize-percent-mode" class="hidden">
+          <label class="block text-xs text-muted mb-1" for="resize-percent">百分比</label>
+          <input
+            type="number"
+            id="resize-percent"
+            min="1"
+            max="1000"
+            step="1"
+            value="50"
+            class="w-28 rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+        <p class="text-xs text-muted">选择一种方式即可，无需两者都填。</p>
+      </div>
+
+      <!-- 格式转换 -->
+      <div data-panel="convert" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <Icon name="tabler:file-arrow-right" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm font-medium">格式转换</span>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1" for="convert-format">目标格式</label>
+          <select
+            id="convert-format"
+            class="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
+          >
+            <option value="png">PNG（无损）</option>
+            <option value="jpeg">JPG</option>
+            <option value="webp">WebP</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-muted mb-1"
+            >质量（JPG/WebP）：<span id="convert-quality-value" class="font-semibold">90</span></label
+          >
+          <input type="range" id="convert-quality" min="10" max="100" value="90" class="w-full" />
+        </div>
+        <p class="text-xs text-muted">转换保持原尺寸不变。转 JPG 时透明区域将填充白色。</p>
+      </div>
+    </div>
+
+    <!-- 状态 / 错误 -->
+    <div id="status" class="hidden text-sm text-blue-600 dark:text-blue-400 mt-3"></div>
+    <div id="error" class="hidden text-sm text-red-600 dark:text-red-400 mt-3"></div>
+
+    <!-- 处理按钮 -->
+    <div id="apply-wrap" class="hidden mt-4">
+      <button
+        id="apply-btn"
+        type="button"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        处理
+      </button>
+    </div>
+
+    <!-- 输出区 -->
+    <div id="output-wrap" class="hidden mt-6">
+      <h2 class="text-lg font-semibold mb-3">处理结果：</h2>
+      <div
+        class="bg-gray-100 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 min-h-48 flex items-center justify-center overflow-hidden"
+      >
+        <img id="output-preview" class="hidden max-h-80 w-full object-contain" alt="处理结果" />
+        <p id="output-empty" class="text-muted text-sm">处理后在此显示结果</p>
+      </div>
+      <p id="output-info" class="text-xs text-muted mt-2 hidden"></p>
+      <button
+        id="download-btn"
+        type="button"
+        disabled
+        class="mt-3 w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg transition-colors"
+      >
+        下载结果
+      </button>
+    </div>
+  </main>
+</PageLayout>
+
+<script>
+  import Cropper from 'cropperjs';
+  import imageCompression from 'browser-image-compression';
+
+  function formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KB', 'MB', 'GB'];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)) - 1, units.length - 1);
+    return `${(bytes / Math.pow(1024, i + 1)).toFixed(2)} ${units[i]}`;
+  }
+
+  function initImageToolbox(): void {
+    // 页面归属守卫：导航到其它页面后本页 DOM 不存在时直接跳过
+    if (!document.getElementById('tool-panel')) {
+      return;
+    }
+    const infoName = document.getElementById('info-name') as HTMLElement | null;
+    const infoSize = document.getElementById('info-size') as HTMLElement | null;
+    const infoRes = document.getElementById('info-res') as HTMLElement | null;
+    const infoType = document.getElementById('info-type') as HTMLElement | null;
+    const statusEl = document.getElementById('status') as HTMLElement | null;
+    const errorEl = document.getElementById('error') as HTMLElement | null;
+    const outputEmpty = document.getElementById('output-empty') as HTMLElement | null;
+    const outputInfo = document.getElementById('output-info') as HTMLElement | null;
+
+    const toolBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tool]'));
+    const panels = Array.from(document.querySelectorAll<HTMLElement>('[data-panel]'));
+
+    // 核心元素统一非空断言（本页 DOM 已由归属守卫确认存在）
+    const uploadWrapEl = document.getElementById('upload-wrap') as HTMLElement;
+    const uploadAreaEl = document.getElementById('upload-area') as HTMLElement;
+    const fileInputEl = document.getElementById('file-input') as HTMLInputElement;
+    const previewWrapEl = document.getElementById('preview-wrap') as HTMLElement;
+    const previewImageEl = document.getElementById('preview-image') as HTMLImageElement;
+    const toolPanelEl = document.getElementById('tool-panel') as HTMLElement;
+    const applyBtnEl = document.getElementById('apply-btn') as HTMLButtonElement;
+    const applyWrapEl = document.getElementById('apply-wrap') as HTMLElement;
+    const outputWrapEl = document.getElementById('output-wrap') as HTMLElement;
+    const outputPreviewEl = document.getElementById('output-preview') as HTMLImageElement;
+    const downloadBtnEl = document.getElementById('download-btn') as HTMLButtonElement;
+
+    const show = (el: HTMLElement | null) => el?.classList.remove('hidden');
+    const hide = (el: HTMLElement | null) => el?.classList.add('hidden');
+
+    let originalFile: File | null = null;
+    let originalUrl: string | null = null;
+    let naturalWidth = 0;
+    let naturalHeight = 0;
+    let cropper: Cropper | null = null;
+    let outputBlob: Blob | null = null;
+    let outputUrl: string | null = null;
+    let outputName = '';
+    let processing = false;
+    let activeTool = 'crop';
+    let cropSyncLocked = false;
+    let cropInitialized = false;
+    let cropImageUrl = '';
+
+    function setStatus(message: string): void {
+      if (!statusEl) return;
+      if (!message) {
+        hide(statusEl);
+        return;
+      }
+      statusEl.textContent = message;
+      show(statusEl);
+    }
+
+    function setError(message: string): void {
+      if (!errorEl) return;
+      if (!message) {
+        hide(errorEl);
+        return;
+      }
+      errorEl.textContent = message;
+      show(errorEl);
+    }
+
+    function revokeUrl(url: string | null): void {
+      if (url) URL.revokeObjectURL(url);
+    }
+
+    function parseRatio(expr: string): number {
+      const parts = expr.split('/').map((s) => parseFloat(s.trim()));
+      return parts.length === 2 && parts[0] > 0 && parts[1] > 0 ? parts[0] / parts[1] : NaN;
+    }
+
+    function switchTool(id: string): void {
+      activeTool = id;
+      toolBtns.forEach((btn) => {
+        const active = btn.dataset.tool === id;
+        btn.classList.toggle('bg-blue-100', active);
+        btn.classList.toggle('text-blue-700', active);
+        btn.classList.toggle('dark:bg-blue-500/20', active);
+        btn.classList.toggle('dark:text-blue-300', active);
+        btn.classList.toggle('text-muted', !active);
+        btn.classList.toggle('hover:bg-gray-100', !active);
+        btn.classList.toggle('dark:hover:bg-slate-700', !active);
+        btn.classList.toggle('hover:text-gray-900', !active);
+        btn.classList.toggle('dark:hover:text-slate-100', !active);
+      });
+      panels.forEach((p) => {
+        if (p.dataset.panel === id) show(p);
+        else hide(p);
+      });
+    }
+
+    function showOutput(blob: Blob, name: string): void {
+      revokeUrl(outputUrl);
+      outputBlob = blob;
+      outputName = name;
+      outputUrl = URL.createObjectURL(blob);
+      outputPreviewEl.src = outputUrl;
+      show(outputPreviewEl);
+      hide(outputEmpty);
+      if (outputInfo) {
+        outputInfo.textContent = `大小：${formatSize(blob.size)}`;
+        show(outputInfo);
+      }
+      show(outputWrapEl);
+      downloadBtnEl.disabled = false;
+    }
+
+    // 从 blob 加载图片元素
+    function loadImageElement(src: string): Promise<HTMLImageElement> {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('无法加载图片。'));
+        img.src = src;
+      });
+    }
+
+    // canvas 转 blob（JPG 填白底避免透明变黑）
+    function canvasToBlob(canvas: HTMLCanvasElement, format: string, quality: number): Promise<Blob | null> {
+      return new Promise((resolve) => {
+        if (format === 'jpeg') {
+          const bg = document.createElement('canvas');
+          bg.width = canvas.width;
+          bg.height = canvas.height;
+          const bctx = bg.getContext('2d') as CanvasRenderingContext2D;
+          bctx.fillStyle = '#fff';
+          bctx.fillRect(0, 0, bg.width, bg.height);
+          bctx.drawImage(canvas, 0, 0);
+          bg.toBlob((b) => resolve(b), 'image/jpeg', quality / 100);
+        } else {
+          canvas.toBlob((b) => resolve(b), format === 'webp' ? 'image/webp' : 'image/png', quality / 100);
+        }
+      });
+    }
+
+    // ---- 裁切 ----
+    const cropImage = document.getElementById('crop-image') as HTMLImageElement;
+    const cropLeft = document.getElementById('crop-left') as HTMLInputElement;
+    const cropTop = document.getElementById('crop-top') as HTMLInputElement;
+    const cropWidth = document.getElementById('crop-width') as HTMLInputElement;
+    const cropHeight = document.getElementById('crop-height') as HTMLInputElement;
+    const cropFormat = document.getElementById('crop-format') as HTMLSelectElement;
+    const cropQuality = document.getElementById('crop-quality') as HTMLInputElement;
+    const cropQualityValue = document.getElementById('crop-quality-value') as HTMLElement;
+    const aspect = document.getElementById('aspect') as HTMLSelectElement;
+
+    function destroyCropper(): void {
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+    }
+
+    function initCrop(): void {
+      if (!originalUrl || !naturalWidth || !naturalHeight) return;
+      // 同一张图只初始化一次，避免反复 destroy/重建导致引用错乱
+      if (cropInitialized && cropImageUrl === originalUrl && cropper) {
+        return;
+      }
+      destroyCropper();
+      cropInitialized = false;
+      cropImageUrl = originalUrl;
+      cropImage.src = originalUrl;
+      const start = () => {
+        destroyCropper();
+        cropper = new Cropper(cropImage, {
+          viewMode: 1,
+          dragMode: 'move',
+          autoCropArea: 0.8,
+          aspectRatio: NaN,
+          background: false,
+          ready: () => syncCropFromCropper(),
+        });
+        cropInitialized = true;
+      };
+      if (cropImage.complete && cropImage.naturalWidth) {
+        start();
+      } else {
+        cropImage.addEventListener('load', start, { once: true });
+      }
+    }
+
+    function syncCropFromCropper(): void {
+      // setData 触发的 crop 回调会被锁定跳过，避免覆盖用户刚填的输入
+      if (cropSyncLocked || !cropper) return;
+      const data = cropper.getData();
+      cropLeft.value = String(Math.max(0, Math.round(data.x)));
+      cropTop.value = String(Math.max(0, Math.round(data.y)));
+      cropWidth.value = String(Math.max(1, Math.round(data.width)));
+      cropHeight.value = String(Math.max(1, Math.round(data.height)));
+    }
+
+    function syncCropperFromInput(): void {
+      if (!cropper) return;
+      const x = Math.max(0, Number(cropLeft.value) || 0);
+      const y = Math.max(0, Number(cropTop.value) || 0);
+      const w = Math.max(1, Number(cropWidth.value) || naturalWidth);
+      const h = Math.max(1, Number(cropHeight.value) || naturalHeight);
+      if (x + w > naturalWidth || y + h > naturalHeight) {
+        setError('裁剪区域超出图片范围。');
+        return;
+      }
+      setError('');
+      // 锁住 crop 事件回写，让 setData 移动选框生效
+      cropSyncLocked = true;
+      cropper.setData({ x, y, width: w, height: h });
+      setTimeout(() => {
+        cropSyncLocked = false;
+        syncCropFromCropper(); // 解锁后回读一次，保持输入与选框一致
+      }, 0);
+    }
+
+    async function handleCrop(): Promise<void> {
+      if (!originalFile) return;
+      if (!cropper) {
+        initCrop();
+        await new Promise((r) => setTimeout(r, 50));
+        if (!cropper) throw new Error('裁切组件未就绪，请重试。');
+      }
+      syncCropFromCropper();
+      const canvas = cropper.getCroppedCanvas({ fillColor: '#fff' });
+      const format = cropFormat.value;
+      const quality = Number(cropQuality.value);
+      const blob = await canvasToBlob(canvas, format, quality);
+      if (!blob) throw new Error('无法生成裁切结果。');
+      showOutput(blob, `${outputName}-crop.${format}`);
+    }
+
+    // ---- 压缩 ----
+    const compressQuality = document.getElementById('compress-quality') as HTMLInputElement;
+    const compressQualityValue = document.getElementById('compress-quality-value') as HTMLElement;
+    const compressEstimate = document.getElementById('compress-estimate') as HTMLElement;
+    const compressFormat = document.getElementById('compress-format') as HTMLSelectElement;
+
+    async function handleCompress(): Promise<void> {
+      if (!originalFile) return;
+      const quality = Number(compressQuality.value);
+      const sizeMB = originalFile.size / (1024 * 1024);
+      const maxSizeMB = Math.max(sizeMB * (quality / 100), 0.1);
+      const fmt = compressFormat.value;
+      const options: Record<string, unknown> = { maxSizeMB, useWebWorker: true };
+      if (fmt !== 'same') {
+        options.fileType = fmt === 'jpeg' ? 'image/jpeg' : 'image/webp';
+      }
+      const output = await imageCompression(originalFile, options);
+      const ext = fmt === 'same' ? originalFile.name.match(/\.[^.]+$/)?.[0] || '' : `.${fmt}`;
+      showOutput(output, `${outputName}-compressed${ext}`);
+    }
+
+    // ---- 旋转 ----
+    const rotateDir = document.getElementById('rotate-dir') as HTMLSelectElement;
+    const rotateFormat = document.getElementById('rotate-format') as HTMLSelectElement;
+
+    async function handleRotate(): Promise<void> {
+      if (!originalUrl) return;
+      const img = await loadImageElement(originalUrl);
+      const dir = rotateDir.value;
+      const swap = dir === 'cw90' || dir === 'ccw90';
+      const canvas = document.createElement('canvas');
+      canvas.width = swap ? img.naturalHeight : img.naturalWidth;
+      canvas.height = swap ? img.naturalWidth : img.naturalHeight;
+      const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      switch (dir) {
+        case 'cw90':
+          ctx.rotate(Math.PI / 2);
+          break;
+        case 'ccw90':
+          ctx.rotate(-Math.PI / 2);
+          break;
+        case '180':
+          ctx.rotate(Math.PI);
+          break;
+        case 'hflip':
+          ctx.scale(-1, 1);
+          break;
+        case 'vflip':
+          ctx.scale(1, -1);
+          break;
+      }
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      const format = rotateFormat.value;
+      const blob = await canvasToBlob(canvas, format, 90);
+      if (!blob) throw new Error('无法生成旋转结果。');
+      showOutput(blob, `${outputName}-rotate.${format}`);
+    }
+
+    // ---- 缩放 ----
+    const resizeSizeMode = document.getElementById('resize-size-mode') as HTMLElement;
+    const resizePercentMode = document.getElementById('resize-percent-mode') as HTMLElement;
+    const resizeWidth = document.getElementById('resize-width') as HTMLInputElement;
+    const resizeHeight = document.getElementById('resize-height') as HTMLInputElement;
+    const resizePercent = document.getElementById('resize-percent') as HTMLInputElement;
+    const resizeModeRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="resize-mode"]'));
+
+    function switchResizeMode(mode: string): void {
+      const isPercent = mode === 'percent';
+      show(isPercent ? resizePercentMode : resizeSizeMode);
+      hide(isPercent ? resizeSizeMode : resizePercentMode);
+    }
+
+    async function handleResize(): Promise<void> {
+      if (!originalUrl) return;
+      const img = await loadImageElement(originalUrl);
+      const srcW = img.naturalWidth;
+      const srcH = img.naturalHeight;
+      let outW: number;
+      let outH: number;
+      const mode = resizeModeRadios.find((r) => r.checked)?.value ?? 'size';
+      if (mode === 'percent') {
+        const pct = Number(resizePercent.value) || 0;
+        if (pct <= 0) throw new Error('请填写有效的百分比。');
+        outW = Math.max(1, Math.round((srcW * pct) / 100));
+        outH = Math.max(1, Math.round((srcH * pct) / 100));
+      } else {
+        const w = resizeWidth.value ? Number(resizeWidth.value) : 0;
+        const h = resizeHeight.value ? Number(resizeHeight.value) : 0;
+        if (!w && !h) throw new Error('请填写宽度或高度。');
+        if (w && h) {
+          outW = w;
+          outH = h;
+        } else if (w) {
+          outW = w;
+          outH = Math.max(1, Math.round((srcH * w) / srcW));
+        } else {
+          outH = h;
+          outW = Math.max(1, Math.round((srcW * h) / srcH));
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, outW, outH);
+      // 保留原格式输出（PNG/JPEG 用原始类型，WebP 用 webp）
+      const mime =
+        originalFile?.type === 'image/webp'
+          ? 'image/webp'
+          : originalFile?.type === 'image/jpeg'
+            ? 'image/jpeg'
+            : 'image/png';
+      const ext = mime === 'image/webp' ? 'webp' : mime === 'image/jpeg' ? 'jpg' : 'png';
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), mime, 0.92));
+      if (!blob) throw new Error('无法生成缩放结果。');
+      showOutput(blob, `${outputName}-resize.${ext}`);
+    }
+
+    // ---- 格式转换 ----
+    const convertFormat = document.getElementById('convert-format') as HTMLSelectElement;
+    const convertQuality = document.getElementById('convert-quality') as HTMLInputElement;
+    const convertQualityValue = document.getElementById('convert-quality-value') as HTMLElement;
+
+    async function handleConvert(): Promise<void> {
+      if (!originalUrl) return;
+      const img = await loadImageElement(originalUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+      ctx.drawImage(img, 0, 0);
+      const format = convertFormat.value;
+      const quality = Number(convertQuality.value);
+      const blob = await canvasToBlob(canvas, format, quality);
+      if (!blob) throw new Error('无法生成转换结果。');
+      showOutput(blob, `${outputName}.${format}`);
+    }
+
+    // ---- 分发 ----
+    async function apply(): Promise<void> {
+      if (!originalFile || processing) return;
+      setError('');
+      processing = true;
+      applyBtnEl.disabled = true;
+      downloadBtnEl.disabled = true;
+      setStatus('处理中...');
+      try {
+        if (activeTool === 'crop') await handleCrop();
+        else if (activeTool === 'compress') await handleCompress();
+        else if (activeTool === 'rotate') await handleRotate();
+        else if (activeTool === 'resize') await handleResize();
+        else if (activeTool === 'convert') await handleConvert();
+        setStatus('');
+      } catch (err) {
+        setStatus('');
+        const msg = err instanceof Error ? err.message : err !== null && err !== undefined ? String(err) : '未知错误';
+        setError(`处理失败：${msg}。`);
+      } finally {
+        processing = false;
+        applyBtnEl.disabled = false;
+      }
+    }
+
+    // ---- 上传 ----
+    async function handleFile(file: File | undefined): Promise<void> {
+      if (!file) return;
+      if (processing) throw new Error('正在处理，请等待当前任务完成。');
+      if (!file.type.startsWith('image/')) throw new Error('请选择有效的图片文件（PNG / JPG / WebP）。');
+      setError('');
+      setStatus('');
+
+      revokeUrl(originalUrl);
+      originalFile = file;
+      outputBlob = null;
+      originalUrl = URL.createObjectURL(file);
+
+      const img = await loadImageElement(originalUrl);
+      naturalWidth = img.naturalWidth;
+      naturalHeight = img.naturalHeight;
+
+      if (infoName) infoName.textContent = `文件名: ${file.name}`;
+      if (infoSize) infoSize.textContent = `大小: ${formatSize(file.size)}`;
+      if (infoRes) infoRes.textContent = `分辨率: ${naturalWidth}×${naturalHeight}`;
+      if (infoType) infoType.textContent = `格式: ${file.type}`;
+      if (compressEstimate) compressEstimate.textContent = `原图大小：${formatSize(file.size)}（压缩后预估将更小）`;
+
+      previewImageEl.src = originalUrl;
+      hide(uploadWrapEl);
+      show(previewWrapEl);
+      show(toolPanelEl);
+      show(applyWrapEl);
+      switchTool(activeTool);
+      if (activeTool === 'crop') initCrop();
+    }
+
+    // ---- 事件绑定 ----
+    fileInputEl.addEventListener('change', async () => {
+      const file = fileInputEl.files?.[0];
+      if (!file) {
+        fileInputEl.value = '';
+        return;
+      }
+      try {
+        await handleFile(file);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '文件处理失败，请重试。');
+      } finally {
+        fileInputEl.value = '';
+      }
+    });
+
+    uploadAreaEl.addEventListener('dragover', (e: DragEvent) => {
+      e.preventDefault();
+      uploadAreaEl.classList.add('border-blue-500', 'dark:border-blue-400');
+    });
+    uploadAreaEl.addEventListener('dragleave', () => {
+      uploadAreaEl.classList.remove('border-blue-500', 'dark:border-blue-400');
+    });
+    uploadAreaEl.addEventListener('drop', async (e: DragEvent) => {
+      e.preventDefault();
+      uploadAreaEl.classList.remove('border-blue-500', 'dark:border-blue-400');
+      const file = e.dataTransfer?.files?.[0];
+      if (file) {
+        try {
+          await handleFile(file);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : '文件处理失败，请重试。');
+        }
+      }
+    });
+
+    toolBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.tool;
+        if (!id) return;
+        switchTool(id);
+        if (id === 'crop') initCrop();
+      });
+    });
+
+    // 裁切：比例 + 像素输入 + 质量（crop 事件只绑定一次，避免累积）
+    cropImage.addEventListener('crop', () => syncCropFromCropper());
+    aspect.addEventListener('change', () => {
+      if (!cropper) return;
+      const v = aspect.value;
+      cropper.setAspectRatio(v === 'free' ? NaN : parseRatio(v));
+    });
+    cropLeft.addEventListener('change', syncCropperFromInput);
+    cropTop.addEventListener('change', syncCropperFromInput);
+    cropWidth.addEventListener('change', syncCropperFromInput);
+    cropHeight.addEventListener('change', syncCropperFromInput);
+    cropQuality.addEventListener('input', () => {
+      cropQualityValue.textContent = cropQuality.value;
+    });
+
+    // 压缩滑块
+    compressQuality.addEventListener('input', () => {
+      compressQualityValue.textContent = `${compressQuality.value}%`;
+    });
+
+    // 格式转换质量
+    convertQuality.addEventListener('input', () => {
+      convertQualityValue.textContent = convertQuality.value;
+    });
+
+    // 缩放模式切换
+    resizeModeRadios.forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (radio.checked) switchResizeMode(radio.value);
+      });
+    });
+
+    applyBtnEl.addEventListener('click', apply);
+
+    downloadBtnEl.addEventListener('click', () => {
+      if (!outputBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(outputBlob);
+      a.download = outputName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  }
+
+  document.addEventListener('astro:page-load', initImageToolbox);
+</script>

@@ -1,0 +1,45 @@
+---
+import { Icon } from 'astro-icon/components';
+---
+
+<button
+  id="back-to-top"
+  type="button"
+  aria-label="返回顶部"
+  class="fixed bottom-5 right-5 md:bottom-6 md:right-6 z-40 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-md hover:shadow-lg hover:border-primary dark:hover:border-primary text-muted hover:text-primary transition-all duration-300 opacity-0 invisible pointer-events-none"
+>
+  <Icon name="tabler:arrow-up" class="w-5 h-5" />
+</button>
+
+<script>
+  const btn = document.getElementById('back-to-top');
+  if (btn) {
+    const SCROLL_THRESHOLD = 400;
+    let ticking = false;
+
+    const update = () => {
+      const visible = window.scrollY > SCROLL_THRESHOLD;
+      btn.classList.toggle('opacity-0', !visible);
+      btn.classList.toggle('invisible', !visible);
+      btn.classList.toggle('pointer-events-none', !visible);
+      ticking = false;
+    };
+
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (!ticking) {
+          window.requestAnimationFrame(update);
+          ticking = true;
+        }
+      },
+      { passive: true }
+    );
+
+    btn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    update();
+  }
+</script>
