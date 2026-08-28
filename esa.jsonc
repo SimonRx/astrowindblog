@@ -1,0 +1,11 @@
+{
+  // ESA Pages 构建与静态托管配置
+  // 文档: https://help.aliyun.com/zh/edge-security-acceleration/esa/user-guide/build-pages
+  "name": "astrowindblog",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "assets": {
+    "directory": "./dist",
+    "notFoundStrategy": "404Page"
+  }
+}
