@@ -16,7 +16,7 @@ const metadata = { title: '图片工具' };
 ---
 
 <PageLayout metadata={metadata}>
-  <main class="max-w-3xl mx-auto px-4 py-8">
+  <main class="max-w-3xl mx-auto px-4 py-8" data-page="image-toolbox">
     <!-- 标题 + 返回 -->
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
@@ -368,8 +368,10 @@ const metadata = { title: '图片工具' };
   }
 
   function initImageToolbox(): void {
-    // 页面归属守卫：导航到其它页面后本页 DOM 不存在时直接跳过
-    if (!document.getElementById('tool-panel')) {
+    // 页面归属守卫：仅当本页 DOM 存在时才初始化。
+    // 用唯一标识区分，避免与 video-toolbox 共享的 #tool-panel 等 ID 造成误判，
+    // 防止 View Transitions 客户端导航时两个 init 同时绑定到同一元素。
+    if (!document.querySelector('[data-page="image-toolbox"]')) {
       return;
     }
     const infoName = document.getElementById('info-name') as HTMLElement | null;

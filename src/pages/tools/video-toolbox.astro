@@ -19,7 +19,7 @@ const metadata = { title: '视频工具' };
 ---
 
 <PageLayout metadata={metadata}>
-  <main class="max-w-3xl mx-auto px-4 py-8">
+  <main class="max-w-3xl mx-auto px-4 py-8" data-page="video-toolbox">
     <!-- 标题 + 返回 -->
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
@@ -499,8 +499,10 @@ const metadata = { title: '视频工具' };
   }
 
   function initVideoToolbox(): void {
-    // 页面归属守卫：导航到其它页面后本页 DOM 不存在时直接跳过
-    if (!document.getElementById('tool-panel')) {
+    // 页面归属守卫：仅当本页 DOM 存在时才初始化。
+    // 用唯一标识区分，避免与 image-toolbox 共享的 #tool-panel 等 ID 造成误判，
+    // 防止 View Transitions 客户端导航时两个 init 同时绑定到同一元素。
+    if (!document.querySelector('[data-page="video-toolbox"]')) {
       return;
     }
     const uploadWrap = document.getElementById('upload-wrap') as HTMLElement;
@@ -777,9 +779,12 @@ const metadata = { title: '视频工具' };
       try {
         setStatus('正在加载 FFmpeg 引擎（首次约 30MB）...');
         // 运行时动态拼接，避免 Vite 静态分析 public 路径。
-        // wasm 超过 ESA Pages 单文件 25MB 限制，生产环境通过 PUBLIC_FFMPEG_BASE 指向 OSS 域名加载；
-        // 未配置时回退到本地 /ffmpeg/（开发/本地预览）。
-        const base = (import.meta.env.PUBLIC_FFMPEG_BASE || window.location.origin + '/ffmpeg/').replace(/\/$/, '') + '/';
+        // wasm 超过 ESA Pages 单文件 25MB 限制，通过 PUBLIC_FFMPEG_BASE 指定加载地址；
+        // 默认回退到 npmmirror（阿里云免费 CDN，带 CORS、一年长缓存），未配置环境变量时也能用。
+        const base =
+          (
+            import.meta.env.PUBLIC_FFMPEG_BASE || 'https://registry.npmmirror.com/@ffmpeg/core/0.12.10/files/dist/esm/'
+          ).replace(/\/$/, '') + '/';
         await ffmpeg.load({
           coreURL: base + 'ffmpeg-core.js',
           wasmURL: base + 'ffmpeg-core.wasm',
