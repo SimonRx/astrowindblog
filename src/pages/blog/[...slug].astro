@@ -53,27 +53,27 @@ const metadata = { title };
 
 <PageLayout metadata={metadata}>
   <main class="max-w-6xl mx-auto px-4 py-12">
-    <article class="mb-6">
+    <article class="mb-6" data-pagefind-body>
       <a href="/blog" class="inline-flex items-center gap-1 text-sm text-muted hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
         <Icon name="tabler:chevron-left" class="w-4 h-4" />
         返回博客列表
       </a>
-      <h1 class="text-3xl font-bold mt-4">{title}</h1>
+      <h1 class="text-3xl font-bold mt-4" data-pagefind-meta="title">{title}</h1>
       {subtitle && (
         <p class="text-lg text-muted mt-2">{subtitle}</p>
       )}
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted mt-2">
         {publishDate && (
-          <time>
+          <time data-pagefind-ignore>
             {publishDate.toLocaleDateString('zh-CN', {
               year: 'numeric', month: 'long', day: 'numeric'
             })}
           </time>
         )}
-        <span aria-hidden="true">·</span>
-        <span>{totalWords} 字 · {readTimeText}</span>
+        <span aria-hidden="true" data-pagefind-ignore>·</span>
+        <span data-pagefind-ignore>{totalWords} 字 · {readTimeText}</span>
         {tags.length > 0 && (
-          <div class="flex flex-wrap gap-1.5">
+          <div class="flex flex-wrap gap-1.5" data-pagefind-filter="tag">
             {tags.map((tag) => (
               <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-primary/20">
                 {tag}

@@ -1098,7 +1098,8 @@ const metadata = { title: '视频工具' };
         // 默认裁剪框：画面中部 80%
         cropper = new Cropper(cropImage, {
           viewMode: 1,
-          dragMode: 'move',
+          // none：裁剪框外禁止拖动背景图（移动端手指易误触框外），只能拖动裁剪框/手柄
+          dragMode: 'none',
           autoCropArea: 0.8,
           aspectRatio: cropAspectRatio ?? NaN,
           background: false,

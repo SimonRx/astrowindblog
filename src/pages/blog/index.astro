@@ -40,32 +40,53 @@ const postList = allPosts.map((post) => ({
     <div
       class="mb-6 sticky top-16 z-10 bg-white dark:bg-slate-900 py-3 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
     >
-      <div class="max-w-md mx-auto relative">
-        <span
-          class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted"
-          aria-hidden="true"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="w-4 h-4"
+      <div class="max-w-md mx-auto">
+        <div class="relative">
+          <span
+            class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted"
+            aria-hidden="true"
           >
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-        </span>
-        <input
-          id="blog-search-input"
-          type="search"
-          placeholder="搜索文章…"
-          autocomplete="off"
-          class="w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-        />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="w-4 h-4"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input
+            id="blog-search-input"
+            type="search"
+            placeholder="搜索文章…"
+            autocomplete="off"
+            class="w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+          />
+        </div>
+        <!-- 搜索范围筛选 -->
+        <div id="search-scope" class="flex flex-wrap justify-center gap-1.5 mt-3">
+          {['all', 'title', 'tag', 'body'].map((scope) => {
+            const label = { all: '全部', title: '标题', tag: '标签', body: '正文' }[scope];
+            return (
+              <button
+                type="button"
+                data-search-scope={scope}
+                class={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                  scope === 'all'
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'bg-white dark:bg-slate-800 text-muted border-gray-200 dark:border-slate-700 hover:border-primary/50 hover:text-primary'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
 
@@ -177,11 +198,13 @@ const postList = allPosts.map((post) => ({
   // 重新获取当前 DOM 节点，避免模块脚本只执行一次导致事件绑定到旧节点。
   const state = {
     input: null,
+    scopeBtns: [],
     defaultPosts: null,
     resultsWrap: null,
     resultsGrid: null,
     emptyMsg: null,
     timer: null,
+    scope: 'all',
     bound: false,
   };
 
@@ -196,6 +219,7 @@ const postList = allPosts.map((post) => ({
     state.resultsWrap = document.getElementById('search-results');
     state.resultsGrid = document.getElementById('search-results-grid');
     state.emptyMsg = document.getElementById('search-empty');
+    state.scopeBtns = Array.from(document.querySelectorAll('[data-search-scope]'));
 
     // 防重复绑定：同一文档生命周期内只绑定一次
     if (state.bound) return;
@@ -204,6 +228,26 @@ const postList = allPosts.map((post) => ({
     input.addEventListener('input', () => {
       clearTimeout(state.timer);
       state.timer = setTimeout(runSearch, 250);
+    });
+
+    state.scopeBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.scope = btn.dataset.searchScope;
+        // 更新选中态
+        state.scopeBtns.forEach((b) => {
+          const active = b.dataset.searchScope === state.scope;
+          b.className =
+            'text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ' +
+            (active
+              ? 'bg-primary/10 text-primary border-primary/40'
+              : 'bg-white dark:bg-slate-800 text-muted border-gray-200 dark:border-slate-700 hover:border-primary/50 hover:text-primary');
+        });
+        // 有内容时立即按新范围重新搜索
+        if (state.input.value.trim()) {
+          clearTimeout(state.timer);
+          state.timer = setTimeout(runSearch, 0);
+        }
+      });
     });
   }
 
@@ -298,6 +342,33 @@ const postList = allPosts.map((post) => ({
     state.resultsWrap.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
   }
 
+  // 数字/日期噪音兜底：查询清洗后只剩数字/日期特征，正文范围视为无意义
+  function isNoiseQuery(q) {
+    if (!q) return true;
+    const cleaned = q.replace(/[\s，。、,.·年月日时分秒]+/g, '');
+    if (/^\d+$/.test(cleaned)) return true; // 纯数字
+    if (/^\d{4}$/.test(cleaned)) return true; // 年份
+    return false;
+  }
+
+  // 本地字段匹配（标题/标签），返回命中的 post 数组
+  function matchLocal(q, scope) {
+    const lower = q.toLowerCase();
+    return postList.filter((post) => {
+      if (scope === 'title') {
+        return (post.title + ' ' + post.subtitle).toLowerCase().includes(lower);
+      }
+      if (scope === 'tag') {
+        return post.tags.some((t) => t.toLowerCase().includes(lower));
+      }
+      // scope === 'all'：标题/标签任一命中
+      return (
+        (post.title + ' ' + post.subtitle).toLowerCase().includes(lower) ||
+        post.tags.some((t) => t.toLowerCase().includes(lower))
+      );
+    });
+  }
+
   async function runSearch() {
     const query = state.input.value.trim();
 
@@ -309,40 +380,47 @@ const postList = allPosts.map((post) => ({
       return;
     }
 
-    // 先执行异步搜索（期间保持默认列表可见），避免空高度塌陷闪烁
-    let ids = [];
-    try {
-      // 用变量承载 URL，避免 Vite 静态分析 import 字面量（该文件仅存在于构建产物 /pagefind/）
-      const pagefindUrl = '/pagefind/pagefind.js';
-      const pagefind = await import(/* @vite-ignore */ pagefindUrl);
-      const search = await pagefind.search(query);
-      ids = search.results || [];
-    } catch (err) {
-      console.error('Pagefind 搜索失败：', err);
-      showResultsView();
-      state.emptyMsg.classList.remove('hidden');
-      return;
+    const scope = state.scope;
+    // 命中结果的 slug 集合（用 Set 去重，保持顺序）
+    const slugSet = new Set();
+
+    // 标题/标签/全部范围：先做本地匹配
+    if (scope === 'title' || scope === 'tag' || scope === 'all') {
+      matchLocal(query, scope).forEach((post) => slugSet.add(post.slug));
     }
 
-    const results = await Promise.all(
-      ids.map((r) =>
-        r
-          .data()
-          .then((d) => ({
-            id: d.url || r.id,
-            title: d.meta?.title || '',
-          }))
-          .catch(() => null)
-      )
-    );
+    // 正文/全部范围：走 Pagefind；数字噪音查询直接跳过
+    if (scope === 'body' || scope === 'all') {
+      if (!isNoiseQuery(query)) {
+        try {
+          // 用变量承载 URL，避免 Vite 静态分析 import 字面量（该文件仅存在于构建产物 /pagefind/）
+          const pagefindUrl = '/pagefind/pagefind.js';
+          const pagefind = await import(/* @vite-ignore */ pagefindUrl);
+          const search = await pagefind.search(query);
+          const ids = search.results || [];
+          const results = await Promise.all(
+            ids.map((r) =>
+              r
+                .data()
+                .then((d) => ({ id: d.url || r.id, title: d.meta?.title || '' }))
+                .catch(() => null)
+            )
+          );
+          for (const res of results) {
+            const slug = slugFromId(res?.id);
+            if (slug) slugSet.add(slug);
+          }
+        } catch (err) {
+          console.error('Pagefind 搜索失败：', err);
+        }
+      }
+    }
 
-    // 批量构建卡片（DocumentFragment，减少重排）；动画类已在插入前设置好
+    // 渲染命中卡片（按 postList 顺序，保证一致性）
     const fragment = document.createDocumentFragment();
     let matched = 0;
-    for (const res of results) {
-      const slug = slugFromId(res?.id);
-      const post = slug ? bySlug[slug] : null;
-      if (post) {
+    for (const post of postList) {
+      if (slugSet.has(post.slug)) {
         fragment.appendChild(renderCard(post, matched));
         matched++;
       }
