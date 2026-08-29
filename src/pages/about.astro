@@ -1,5 +1,4 @@
 ---
-import Features from '~/components/widgets/Features.astro';
 import Layout from '~/layouts/PageLayout.astro';
 
 const metadata = {
@@ -8,60 +7,59 @@ const metadata = {
 ---
 
 <Layout metadata={metadata}>
-  <main class="max-w-6xl mx-auto px-4 py-12">
-    <div
-      class="text-center mb-12 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
+  <main class="max-w-3xl mx-auto px-4 py-12">
+    <header
+      class="text-center mb-16 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
     >
       <h1 class="text-3xl font-bold mb-3">关于本站</h1>
-      <p class="text-muted max-w-2xl mx-auto">
-        一个基于 AstroWind 的静态博客，包含博客文章与在线工具箱。整站静态预渲染，零服务器依赖，工具全部在浏览器本地运行。
-      </p>
+    </header>
 
-      <div
-        class="mt-8 inline-flex items-center gap-3 rounded-full border border-blue-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-2.5 shadow-sm"
-      >
-        <img src="/deepseek-logo.svg" alt="DeepSeek" class="h-6 w-auto" width="114" height="24" />
-        <span class="text-sm text-gray-700 dark:text-slate-200">本站由 DeepSeek V4 Flash 大人强势驱动</span>
+    <div class="space-y-12 text-gray-700 dark:text-slate-200 leading-relaxed">
+      <p>本站完全是某只猫猫一时兴起的产物，开发的时间还没备案的时间长。</p>
+
+      <p>本站全面采用 Astro + Tailwind 开发。</p>
+
+      <div class="space-y-4">
+        <p class="flex items-center gap-3">
+          <img src="/deepseek-logo.svg" alt="DeepSeek" class="h-6 w-auto" width="114" height="24" />
+          <span>本站的 AI agent 为凉白开的 DeepSeek V4 系列（包括 Flash、Flash Vision Exp、Pro）</span>
+        </p>
+        <p class="text-muted line-through">
+          别问为什么叫凉白开而不是梁圣 大肥鱼涨价了那也没办法啊 该骂
+        </p>
       </div>
+
+      <p>本站主题最初为完全默认的 Fuwari，后改为 Astrowind（魔改版）。</p>
+
+      <div class="space-y-4">
+        <p>
+          本站目前的前端工具 0 框架，全部采用手搓 DOM
+          <span class="text-muted line-through"> 我说大肥鱼神力你尔多龙吗</span>
+        </p>
+        <p>第一次打开需要下载 ffmpeg.wasm。采用阿里云加速源，速度应该还行。</p>
+        <p class="text-muted text-sm">
+          （注意：由于多线程 ffmpeg 配置极其繁琐且兼容性极差，目前为单线程版本）
+        </p>
+        <p>
+          如果效果不佳建议前往
+          <a
+            href="https://ezgif.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Ezgif.com
+          </a>
+          ，效果极佳。
+        </p>
+      </div>
+
+      <p class="flex items-center gap-3">
+        <img src="/aliyun-logo.svg" alt="阿里云" class="h-6 w-auto" width="120" height="20" />
+        <span>本站现托管在阿里云的 ESA 上。</span>
+      </p>
     </div>
 
-    <Features
-      title="技术栈"
-      columns={2}
-      items={[
-        {
-          title: '框架',
-          description: 'Astro 7 + TypeScript，输出静态站点，页面预渲染，加载快、无服务端依赖。',
-          icon: 'tabler:brand-astro',
-        },
-        {
-          title: '样式',
-          description: 'Tailwind CSS v4，内置明暗双主题，基于 Utility-first 原子类定制页面。',
-          icon: 'tabler:palette',
-        },
-        {
-          title: '内容',
-          description: 'MDX + Content Collections 管理博客文章，自带阅读时长计算与响应式表格等 Markdown 增强。',
-          icon: 'tabler:writing',
-        },
-        {
-          title: '搜索与 SEO',
-          description: 'Pagefind 提供站内全文搜索；内置 sitemap、RSS 与完整的 SEO 元数据，字体自托管加速。',
-          icon: 'tabler:search',
-        },
-        {
-          title: '图片优化',
-          description: 'Sharp 处理本地图片，unpic 自动改写 CDN 图片 URL 做响应式加载。',
-          icon: 'tabler:photo',
-        },
-        {
-          title: '在线工具箱',
-          description: '图片工具（裁切/压缩/旋转）与视频工具（转 GIF/裁切/抽帧）基于 cropperjs、ffmpeg.wasm 等，纯浏览器本地处理，数据不上传服务器。',
-          icon: 'tabler:tool',
-        },
-      ]}
-    />
-
-    <footer class="mt-16 text-center text-sm text-muted">© 2026 保留所有权利。</footer>
+    <footer class="mt-20 text-center text-sm text-muted">© 2026 保留所有权利。</footer>
   </main>
 </Layout>

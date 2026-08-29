@@ -1,5 +1,6 @@
 ---
 import PageLayout from '../layouts/PageLayout.astro';
+import { Icon } from 'astro-icon/components';
 import { fetchPosts, findLatestPosts } from '../utils/blog';
 
 // 使用官方 getCollection('post') 接口读取，返回已按 publishDate 降序排序的文章
@@ -44,7 +45,11 @@ const metadata = { title: '主页' };
         ) : (
           <>
             <div
-              class="flex gap-4 -mx-4 px-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin lg:grid lg:grid-cols-3 lg:gap-6 lg:mx-0 lg:px-0 lg:overflow-visible lg:snap-none lg:pb-0"
+              class={`flex gap-4 -mx-4 px-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin ${
+                recentPosts.length === 1 ? 'justify-center' : ''
+              } lg:mx-0 lg:px-0 lg:overflow-visible lg:snap-none lg:pb-0 ${
+                recentPosts.length < 3 ? 'lg:flex lg:flex-wrap lg:justify-center lg:gap-6' : 'lg:grid lg:grid-cols-3 lg:gap-6'
+              }`}
               style="scroll-padding-left: 16px; scroll-padding-right: 16px;"
             >
               {recentPosts.map((post, index) => {
@@ -53,7 +58,9 @@ const metadata = { title: '主页' };
                 return (
                   <a
                     href={`/blog/${post.slug}`}
-                    class={`group block w-[280px] sm:w-[320px] lg:w-auto shrink-0 snap-start bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 ${delayClass}`}
+                    class={`group block w-[280px] sm:w-[320px] shrink-0 snap-start bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 ${
+                      recentPosts.length < 3 ? 'lg:w-96' : 'lg:w-auto'
+                    } ${delayClass}`}
                   >
                     <div class="aspect-video overflow-hidden bg-gray-100 dark:bg-slate-700">
                       <img
@@ -91,7 +98,13 @@ const metadata = { title: '主页' };
         )
       }
       <div class="text-center mt-8">
-        <a href="/blog" class="text-blue-600 dark:text-blue-400 hover:underline">查看全部文章 →</a>
+        <a href="/blog" class="btn group inline-flex items-center gap-2">
+          查看全部文章
+          <Icon
+            name="tabler:arrow-right"
+            class="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1"
+          />
+        </a>
       </div>
     </section>
   </main>

@@ -1,0 +1,428 @@
+---
+// @ts-nocheck
+import PageLayout from '../../layouts/PageLayout.astro';
+import { getCollection } from 'astro:content';
+
+// 直接读内容集合（拿正文 body 做全文索引），过滤 draft
+const rawPosts = await getCollection('post');
+const posts = rawPosts
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => new Date(b.data.publishDate) - new Date(a.data.publishDate));
+
+const postsPerPage = 6;
+const currentPage = 1;
+const totalPages = Math.ceil(posts.length / postsPerPage);
+const paginatedPosts = posts.slice(0, postsPerPage);
+
+const metadata = { title: '博客 · FlexSearch 版' };
+
+// 供 FlexSearch 使用的数据：含清洗后的正文搜索串
+const postList = posts.map((post) => {
+  const { data, body } = post;
+  // 清洗正文：去 markdown 标记/HTML/空白/数字，用于全文索引
+  const searchBody = (body || '')
+    .replace(/[#*`>_~\-\[\]()!|\\]/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\d+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 2000);
+  return {
+    slug: post.id.replace(/\.[^.]+$/, ''),
+    title: data.title || '未命名',
+    subtitle: data.subtitle || '',
+    date: data.publishDate
+      ? data.publishDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '日期未知',
+    dateRaw: data.publishDate ? data.publishDate.toISOString() : '',
+    description: data.excerpt || '',
+    image: data.image || '/blog-placeholder.webp',
+    tags: Array.isArray(data.tags) ? data.tags.slice(0, 3) : [],
+    searchBody,
+  };
+});
+---
+
+<PageLayout metadata={metadata}>
+  <main class="max-w-7xl mx-auto px-4 py-12">
+    <!-- 搜索框（sticky，导航栏下方） -->
+    <div
+      class="mb-6 sticky top-16 z-10 bg-white dark:bg-slate-900 py-3 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
+    >
+      <div class="max-w-md mx-auto">
+        <div class="relative">
+          <span
+            class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted"
+            aria-hidden="true"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="w-4 h-4"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input
+            id="blog-search-input"
+            type="search"
+            placeholder="搜索文章…"
+            autocomplete="off"
+            class="w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+          />
+        </div>
+        <!-- 搜索范围筛选 -->
+        <div id="search-scope" class="flex flex-wrap justify-center gap-1.5 mt-3">
+          {['all', 'title', 'tag', 'body'].map((scope) => {
+            const label = { all: '全部', title: '标题', tag: '标签', body: '正文' }[scope];
+            return (
+              <button
+                type="button"
+                data-search-scope={scope}
+                class={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                  scope === 'all'
+                    ? 'bg-primary/10 text-primary border-primary/40'
+                    : 'bg-white dark:bg-slate-800 text-muted border-gray-200 dark:border-slate-700 hover:border-primary/50 hover:text-primary'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+
+    <!-- 标题 -->
+    <div
+      class="mb-10 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
+    >
+      <h1 class="text-2xl md:text-3xl font-bold mb-2 tracking-tight">所有文章</h1>
+      <p class="text-muted text-sm">FlexSearch 全文搜索实现（对比用）</p>
+    </div>
+
+    <!-- 列表区域 -->
+    <div id="posts-area" class="relative min-h-[400px]">
+      <div id="default-posts" class="transition-all duration-200">
+        {posts.length === 0 ? (
+          <p class="text-center text-muted">还没有文章，敬请期待！</p>
+        ) : (
+          <>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
+              {paginatedPosts.map((post, index) => {
+                const image = post.data.image || '/blog-placeholder.webp';
+                const tags = Array.isArray(post.data.tags) ? post.data.tags.slice(0, 3) : [];
+                const delayClass = `delay-${(index % 6) * 100}`;
+                const slug = post.id.replace(/\.[^.]+$/, '');
+                return (
+                  <a
+                    href={`/blog/${slug}`}
+                    class={`group block bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-lg transition-all duration-300 ${delayClass}`}
+                  >
+                    <div class="aspect-video overflow-hidden bg-gray-100 dark:bg-slate-700">
+                      <img
+                        src={image}
+                        alt={post.data.title || '文章封面'}
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                        {...(index === 0 ? { fetchpriority: 'high' } : {})}
+                        decoding="async"
+                      />
+                    </div>
+                    <div class="p-6">
+                      <h2 class="text-base font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                        {post.data.title}
+                      </h2>
+                      {post.data.subtitle && (
+                        <p class="text-sm text-muted mt-1 line-clamp-2">{post.data.subtitle}</p>
+                      )}
+                      <p class="text-xs text-muted mt-2">
+                        {post.data.publishDate.toLocaleDateString('zh-CN', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </p>
+                      {tags.length > 0 && (
+                        <div class="flex flex-wrap gap-1.5 mt-2.5">
+                          {tags.map((tag) => (
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-primary/20">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+
+            {totalPages > 1 && (
+              <div class="flex justify-center mt-8 gap-2 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <a
+                    href={p === 1 ? '/blog-flexsearch' : `/blog-flexsearch/page/${p}`}
+                    class={`
+                      px-3.5 py-1.5 rounded-md text-sm transition border
+                      ${
+                        p === currentPage
+                          ? 'bg-primary text-white border-primary cursor-default'
+                          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 hover:border-primary hover:text-primary'
+                      }
+                    `}
+                  >
+                    {p}
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div
+        id="search-results"
+        class="absolute inset-0 transition-all duration-200 opacity-0 invisible pointer-events-none overflow-y-auto"
+      >
+        <div id="search-results-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <p id="search-empty" class="text-center text-muted hidden">没有找到相关文章。</p>
+      </div>
+    </div>
+  </main>
+</PageLayout>
+
+<!-- FlexSearch 索引数据 -->
+<script type="application/json" id="blog-posts-data" set:html={JSON.stringify(postList)} />
+
+<script>
+  import { Document } from 'flexsearch';
+
+  const postList = JSON.parse(document.getElementById('blog-posts-data').textContent);
+
+  // 构建 FlexSearch 文档索引：字段 title / tags / body
+  let index;
+  try {
+    index = new Document({
+      document: {
+        id: 'slug',
+        index: ['title', 'tags', 'searchBody'],
+        store: true,
+      },
+      tokenize: 'strict',
+      // 中文：默认按整句/空格分词较弱，这里保留默认，便于对比
+    });
+    postList.forEach((post) => index.add(post));
+  } catch (e) {
+    console.error('FlexSearch 索引构建失败：', e);
+  }
+
+  const state = {
+    input: null,
+    scopeBtns: [],
+    defaultPosts: null,
+    resultsWrap: null,
+    resultsGrid: null,
+    emptyMsg: null,
+    timer: null,
+    scope: 'all',
+    bound: false,
+  };
+
+  function initSearch() {
+    const input = document.getElementById('blog-search-input');
+    if (!input) return;
+
+    state.input = input;
+    state.defaultPosts = document.getElementById('default-posts');
+    state.resultsWrap = document.getElementById('search-results');
+    state.resultsGrid = document.getElementById('search-results-grid');
+    state.emptyMsg = document.getElementById('search-empty');
+    state.scopeBtns = Array.from(document.querySelectorAll('[data-search-scope]'));
+
+    if (state.bound) return;
+    state.bound = true;
+
+    input.addEventListener('input', () => {
+      clearTimeout(state.timer);
+      state.timer = setTimeout(runSearch, 250);
+    });
+
+    state.scopeBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.scope = btn.dataset.searchScope;
+        state.scopeBtns.forEach((b) => {
+          const active = b.dataset.searchScope === state.scope;
+          b.className =
+            'text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ' +
+            (active
+              ? 'bg-primary/10 text-primary border-primary/40'
+              : 'bg-white dark:bg-slate-800 text-muted border-gray-200 dark:border-slate-700 hover:border-primary/50 hover:text-primary');
+        });
+        if (state.input.value.trim()) {
+          clearTimeout(state.timer);
+          state.timer = setTimeout(runSearch, 0);
+        }
+      });
+    });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '日期未知';
+    try {
+      return new Date(iso).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return '日期未知';
+    }
+  }
+
+  function renderCard(post, index = 0) {
+    const a = document.createElement('a');
+    a.href = `/blog/${post.slug}`;
+    a.className =
+      'group block bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-lg transition-all duration-300 animate-fade-in-up';
+    a.style.animationDelay = `${index * 0.08}s`;
+
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'aspect-video overflow-hidden bg-gray-100 dark:bg-slate-700';
+    const img = document.createElement('img');
+    img.src = post.image || '/blog-placeholder.webp';
+    img.alt = post.title || '文章封面';
+    img.loading = index === 0 ? 'eager' : 'lazy';
+    img.fetchPriority = index === 0 ? 'high' : 'auto';
+    img.decoding = 'async';
+    img.className = 'w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
+    imgWrap.appendChild(img);
+
+    const body = document.createElement('div');
+    body.className = 'p-6';
+
+    const title = document.createElement('h2');
+    title.className = 'text-base font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-snug';
+    title.textContent = post.title || '';
+    body.appendChild(title);
+
+    if (post.subtitle) {
+      const subtitle = document.createElement('p');
+      subtitle.className = 'text-sm text-muted mt-1 line-clamp-2';
+      subtitle.textContent = post.subtitle;
+      body.appendChild(subtitle);
+    }
+
+    const date = document.createElement('p');
+    date.className = 'text-xs text-muted mt-2';
+    date.textContent = formatDate(post.dateRaw);
+    body.appendChild(date);
+
+    if (post.description) {
+      const desc = document.createElement('p');
+      desc.className = 'text-muted mt-2 text-sm line-clamp-2';
+      desc.textContent = post.description;
+      body.appendChild(desc);
+    }
+
+    if (post.tags && post.tags.length) {
+      const tagWrap = document.createElement('div');
+      tagWrap.className = 'flex flex-wrap gap-1.5 mt-2.5';
+      post.tags.forEach((tag) => {
+        const s = document.createElement('span');
+        s.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-primary/20';
+        s.textContent = tag;
+        tagWrap.appendChild(s);
+      });
+      body.appendChild(tagWrap);
+    }
+
+    a.appendChild(imgWrap);
+    a.appendChild(body);
+    return a;
+  }
+
+  function showDefaultView() {
+    state.defaultPosts.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+    state.resultsWrap.classList.add('invisible', 'opacity-0', 'pointer-events-none');
+  }
+
+  function showResultsView() {
+    state.defaultPosts.classList.add('invisible', 'opacity-0', 'pointer-events-none');
+    state.resultsWrap.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+  }
+
+  function runSearch() {
+    const query = state.input.value.trim();
+    if (!query) {
+      state.resultsGrid.textContent = '';
+      state.emptyMsg.classList.add('hidden');
+      showDefaultView();
+      return;
+    }
+
+    const scope = state.scope;
+    // 映射范围 -> 要搜索的 FlexSearch 字段
+    let fields = null;
+    if (scope === 'title') fields = ['title'];
+    else if (scope === 'tag') fields = ['tags'];
+    else if (scope === 'body') fields = ['searchBody'];
+    // all：三个字段都搜
+
+    let matchedSlugs = [];
+    if (index) {
+      if (fields) {
+        const res = index.search(query, { index: fields });
+        matchedSlugs = Array.from(new Set(res.flatMap((r) => r.result)));
+      } else {
+        const res = index.search(query);
+        matchedSlugs = Array.from(new Set(res.flatMap((r) => r.result)));
+      }
+    }
+
+    // 按 postList 顺序渲染
+    const slugSet = new Set(matchedSlugs);
+    const fragment = document.createDocumentFragment();
+    let matched = 0;
+    for (const post of postList) {
+      if (slugSet.has(post.slug)) {
+        fragment.appendChild(renderCard(post, matched));
+        matched++;
+      }
+    }
+
+    state.resultsGrid.textContent = '';
+    state.emptyMsg.classList.add('hidden');
+    if (matched === 0) {
+      state.emptyMsg.classList.remove('hidden');
+    }
+    showResultsView();
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        state.resultsGrid.appendChild(fragment);
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initSearch);
+</script>
+
+<style is:global>
+  .animate-fade-in-up {
+    animation: fadeInUpCard 0.4s ease-out both;
+  }
+
+  @keyframes fadeInUpCard {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>

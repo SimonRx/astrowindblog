@@ -36,6 +36,7 @@
     "astro-seo": "^1.1.0",
     "browser-image-compression": "^2.0.2",
     "cropperjs": "^1.6.2",
+    "flexsearch": "^0.8.212",
     "gif.js": "^0.2.0",
     "gifenc": "^1.0.3",
     "limax": "4.2.3",

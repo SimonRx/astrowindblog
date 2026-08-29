@@ -1,0 +1,506 @@
+---
+// @ts-nocheck
+import PageLayout from '../../layouts/PageLayout.astro';
+import { getCollection } from 'astro:content';
+
+// 读取文章（过滤 draft），生成搜索摘要数据
+const rawPosts = await getCollection('post');
+const posts = rawPosts
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => new Date(b.data.publishDate) - new Date(a.data.publishDate));
+
+const metadata = { title: '博客 · Includes 版' };
+
+// 摘要数据（不含正文，正文走懒加载 search-index.json）
+const postList = posts.map((post) => ({
+  slug: post.id.replace(/\.[^.]+$/, ''),
+  title: post.data.title || '未命名',
+  subtitle: post.data.subtitle || '',
+  date: post.data.publishDate
+    ? post.data.publishDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '日期未知',
+  dateRaw: post.data.publishDate ? post.data.publishDate.toISOString() : '',
+  description: post.data.excerpt || '',
+  image: post.data.image || '/blog-placeholder.webp',
+  tags: Array.isArray(post.data.tags) ? post.data.tags : [],
+  wordCount: 0,
+  pinned: false,
+}));
+---
+
+<PageLayout metadata={metadata}>
+  <main class="max-w-7xl mx-auto px-4 py-12">
+    <!-- 搜索区 -->
+    <div
+      class="mb-10 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
+    >
+      <h1 class="text-2xl md:text-3xl font-bold mb-2 tracking-tight">所有文章</h1>
+      <p class="text-muted text-sm">前端子串匹配实现（标题+摘要+标签+正文，参考 AcoFork）</p>
+
+      <!-- 搜索框 -->
+      <form id="search-form" class="mt-6 max-w-md mx-auto" role="search" data-astro-inline>
+        <div class="relative">
+          <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="w-4 h-4"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input
+            id="blog-search-input"
+            type="search"
+            placeholder="搜索标题、摘要、标签和正文…"
+            autocomplete="off"
+            class="w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2.5 pl-10 pr-4 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
+          />
+        </div>
+      </form>
+
+      <!-- 标签筛选条 -->
+      <div id="tag-strip" class="flex flex-wrap justify-center gap-1.5 mt-3"></div>
+
+      <!-- 结果数 -->
+      <p id="result-count" class="text-center text-sm text-muted mt-3"></p>
+    </div>
+
+    <!-- 列表区域 -->
+    <div id="posts-area" class="relative min-h-[400px]">
+      <div id="default-posts" class="transition-all duration-200">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade">
+          {posts.slice(0, 9).map((post, index) => {
+            const slug = post.id.replace(/\.[^.]+$/, '');
+            const image = post.data.image || '/blog-placeholder.webp';
+            const tags = Array.isArray(post.data.tags) ? post.data.tags.slice(0, 3) : [];
+            const delayClass = `delay-${(index % 6) * 100}`;
+            return (
+              <a
+                href={`/blog/${slug}`}
+                class={`group block bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-lg transition-all duration-300 ${delayClass}`}
+              >
+                <div class="aspect-video overflow-hidden bg-gray-100 dark:bg-slate-700">
+                  <img
+                    src={image}
+                    alt={post.data.title || '文章封面'}
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                  />
+                </div>
+                <div class="p-6">
+                  <h2 class="text-base font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                    {post.data.title}
+                  </h2>
+                  {post.data.subtitle && <p class="text-sm text-muted mt-1 line-clamp-2">{post.data.subtitle}</p>}
+                  <p class="text-xs text-muted mt-2">
+                    {post.data.publishDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                  {tags.length > 0 && (
+                    <div class="flex flex-wrap gap-1.5 mt-2.5">
+                      {tags.map((tag) => (
+                        <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-primary/20">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+
+      <!-- 动态搜索结果（覆盖默认列表） -->
+      <div
+        id="search-results"
+        class="absolute inset-0 transition-all duration-200 opacity-0 invisible pointer-events-none overflow-y-auto"
+      >
+        <div id="search-results-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="search-empty" class="text-center py-12 hidden">
+          <p class="text-2xl mb-2">⌁</p>
+          <h2 class="text-lg font-semibold">没有找到匹配的文章</h2>
+          <p class="text-muted text-sm mt-1">换个关键词，或者先看看全部文章。</p>
+          <button
+            type="button"
+            id="clear-filters"
+            class="mt-4 px-3 py-1.5 text-sm rounded-full border border-gray-200 dark:border-slate-700 text-muted hover:text-primary hover:border-primary/50 transition-colors"
+          >
+            清除筛选
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <nav id="pagination" class="flex justify-center items-center gap-3 mt-8 hidden" aria-label="博客分页">
+      <button
+        type="button"
+        id="page-prev"
+        class="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-slate-700 text-muted hover:text-primary disabled:opacity-40 disabled:pointer-events-none transition-colors"
+      >
+        ← 上一页
+      </button>
+      <span id="page-info" class="text-sm text-muted"></span>
+      <button
+        type="button"
+        id="page-next"
+        class="px-3 py-1.5 text-sm rounded-md border border-gray-200 dark:border-slate-700 text-muted hover:text-primary disabled:opacity-40 disabled:pointer-events-none transition-colors"
+      >
+        下一页 →
+      </button>
+    </nav>
+  </main>
+</PageLayout>
+
+<!-- 摘要数据 -->
+<script type="application/json" id="blog-posts-data" set:html={JSON.stringify(postList)} />
+
+<script>
+  const PER_PAGE = 9;
+  const SEARCH_INDEX_URL = '/blog-includes/search-index.json';
+
+  let postList = [];
+
+  const state = {
+    posts: postList,
+    query: '',
+    tag: '全部',
+    page: 1,
+    fullIndex: null, // 懒加载的正文索引 { slug: text }
+    loading: false,
+  };
+
+  // DOM 节点在 initSearch 里（DOM 就绪后）再获取，避免模块提前执行拿到 null
+  let defaultPosts = null;
+  let resultsWrap = null;
+  let resultsGrid = null;
+  let emptyEl = null;
+  let resultCount = null;
+  let tagStrip = null;
+  let pagination = null;
+  let pageInfo = null;
+  let pagePrev = null;
+  let pageNext = null;
+
+  // ---- 工具 ----
+  // 本地摘要索引：title + subtitle + description + tags
+  function snippetOf(post) {
+    return `${post.title} ${post.subtitle} ${post.description} ${post.tags.join(' ')}`.toLowerCase();
+  }
+  // 命中文本（优先全文索引，否则本地摘要）
+  function haystack(post) {
+    return (state.fullIndex?.[post.slug] || snippetOf(post)).toLowerCase();
+  }
+  // 统计某词在文本中出现次数
+  function countOccurrences(text, word) {
+    if (!word) return 0;
+    let n = 0;
+    let idx = 0;
+    while (idx !== -1) {
+      idx = text.indexOf(word, idx);
+      if (idx === -1) break;
+      n++;
+      idx += word.length;
+    }
+    return n;
+  }
+
+  // ---- 过滤 + 打分（参照 AcoFork）----
+  function computeResults() {
+    const terms = state.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return state.posts
+      .filter((p) => state.tag === '全部' || p.tags.includes(state.tag))
+      .map((p) => {
+        if (!terms.length) return { post: p, score: 0 };
+        const hs = haystack(p);
+        if (!terms.every((t) => hs.includes(t))) return null; // AND 匹配
+        const score = terms.reduce((s, t) => s + countOccurrences(hs, t), 0);
+        return { post: p, score };
+      })
+      .filter((r) => r !== null);
+  }
+
+  // ---- 渲染 ----
+  function renderCard(post, index = 0) {
+    const a = document.createElement('a');
+    a.href = `/blog/${post.slug}`;
+    a.className =
+      'group block bg-white dark:bg-slate-800 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-lg transition-all duration-300 animate-fade-in-up';
+    a.style.animationDelay = `${index * 0.08}s`;
+
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'aspect-video overflow-hidden bg-gray-100 dark:bg-slate-700';
+    const img = document.createElement('img');
+    img.src = post.image || '/blog-placeholder.webp';
+    img.alt = post.title || '文章封面';
+    img.loading = index === 0 ? 'eager' : 'lazy';
+    img.className = 'w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
+    imgWrap.appendChild(img);
+
+    const body = document.createElement('div');
+    body.className = 'p-6';
+
+    const title = document.createElement('h2');
+    title.className = 'text-base font-semibold group-hover:text-primary transition-colors line-clamp-2 leading-snug';
+    title.textContent = post.title || '';
+    body.appendChild(title);
+
+    if (post.subtitle) {
+      const sub = document.createElement('p');
+      sub.className = 'text-sm text-muted mt-1 line-clamp-2';
+      sub.textContent = post.subtitle;
+      body.appendChild(sub);
+    }
+
+    const date = document.createElement('p');
+    date.className = 'text-xs text-muted mt-2';
+    try {
+      date.textContent = post.dateRaw
+        ? new Date(post.dateRaw).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+        : post.date;
+    } catch {
+      date.textContent = post.date;
+    }
+    body.appendChild(date);
+
+    if (post.description) {
+      const desc = document.createElement('p');
+      desc.className = 'text-muted mt-2 text-sm line-clamp-2';
+      desc.textContent = post.description;
+      body.appendChild(desc);
+    }
+
+    if (post.tags && post.tags.length) {
+      const tagWrap = document.createElement('div');
+      tagWrap.className = 'flex flex-wrap gap-1.5 mt-2.5';
+      post.tags.slice(0, 3).forEach((tag) => {
+        const s = document.createElement('span');
+        s.className = 'text-[11px] font-medium px-2 py-0.5 rounded bg-primary/10 text-primary dark:bg-primary/20';
+        s.textContent = tag;
+        tagWrap.appendChild(s);
+      });
+      body.appendChild(tagWrap);
+    }
+
+    a.appendChild(imgWrap);
+    a.appendChild(body);
+    return a;
+  }
+
+  function buildTagStrip() {
+    const tags = ['全部', ...Array.from(new Set(postList.flatMap((p) => p.tags)))];
+    tagStrip.textContent = '';
+    tags.forEach((t) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.tag = t;
+      b.textContent = t;
+      b.className =
+        'text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ' +
+        (t === state.tag
+          ? 'bg-primary/10 text-primary border-primary/40'
+          : 'bg-white dark:bg-slate-800 text-muted border-gray-200 dark:border-slate-700 hover:border-primary/50 hover:text-primary');
+      b.addEventListener('click', () => {
+        state.tag = t;
+        state.page = 1;
+        syncUrl();
+        buildTagStrip();
+        render();
+      });
+      tagStrip.appendChild(b);
+    });
+  }
+
+  function render() {
+    const results = computeResults();
+    // 排序：有词按分数→日期；无词按 pinned→日期
+    if (state.query.trim()) {
+      results.sort(
+        (a, b) =>
+          b.score - a.score ||
+          (b.post.dateRaw || '').localeCompare(a.post.dateRaw || '') ||
+          (b.post.title || '').localeCompare(a.post.title || '')
+      );
+    } else {
+      results.sort(
+        (a, b) =>
+          (b.post.pinned ? 1 : 0) - (a.post.pinned ? 1 : 0) ||
+          (b.post.dateRaw || '').localeCompare(a.post.dateRaw || '')
+      );
+    }
+
+    const total = results.length;
+    const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+    if (state.page > totalPages) state.page = totalPages;
+    const pageItems = results.slice((state.page - 1) * PER_PAGE, state.page * PER_PAGE);
+
+    // 结果数
+    resultCount.textContent = state.loading ? '正在读取全文索引…' : `${total} 篇文章`;
+
+    // 是否有筛选条件（决定是否切到"结果视图"）
+    const hasFilter = state.query.trim() || state.tag !== '全部';
+    if (!hasFilter) {
+      // 恢复默认列表
+      defaultPosts.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+      resultsWrap.classList.add('invisible', 'opacity-0', 'pointer-events-none');
+      pagination.classList.add('hidden');
+      return;
+    }
+
+    // 结果视图
+    defaultPosts.classList.add('invisible', 'opacity-0', 'pointer-events-none');
+    resultsWrap.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+    resultsGrid.textContent = '';
+
+    if (pageItems.length === 0) {
+      emptyEl.classList.remove('hidden');
+      pagination.classList.add('hidden');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+
+    const fragment = document.createDocumentFragment();
+    pageItems.forEach((item, i) => fragment.appendChild(renderCard(item.post, i)));
+    resultsGrid.appendChild(fragment);
+
+    // 分页
+    pagination.classList.remove('hidden');
+    pageInfo.textContent = `第 ${state.page} / ${totalPages} 页`;
+    pagePrev.disabled = state.page <= 1;
+    pageNext.disabled = state.page >= totalPages;
+  }
+
+  // ---- URL 状态同步（参照 AcoFork）----
+  function syncUrl() {
+    const params = new URLSearchParams();
+    if (state.tag !== '全部') params.set('tag', state.tag);
+    if (state.query.trim()) params.set('q', state.query.trim());
+    if (state.page > 1) params.set('page', String(state.page));
+    const s = params.toString();
+    const url = `${window.location.pathname}${s ? `?${s}` : ''}`;
+    window.history.replaceState({}, '', url);
+  }
+
+  function readUrl() {
+    const p = new URLSearchParams(window.location.search);
+    state.tag = p.get('tag') || '全部';
+    state.query = p.get('q') || '';
+    const pg = Number.parseInt(p.get('page'), 10);
+    state.page = Number.isFinite(pg) && pg > 0 ? pg : 1;
+  }
+
+  // ---- 懒加载全文索引 ----
+  async function ensureIndex() {
+    if (state.fullIndex) return;
+    state.loading = true;
+    try {
+      const res = await fetch(SEARCH_INDEX_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      state.fullIndex = await res.json();
+    } catch (e) {
+      console.error('全文索引加载失败：', e);
+    } finally {
+      state.loading = false;
+      render();
+    }
+  }
+
+  function initSearch() {
+    const input = document.getElementById('blog-search-input');
+    if (!input) return;
+
+    // DOM 就绪后再解析数据、获取节点（模块可能在 DOM 注入前被执行）
+    const dataEl = document.getElementById('blog-posts-data');
+    if (!dataEl) return;
+    postList = JSON.parse(dataEl.textContent);
+    state.posts = postList;
+    defaultPosts = document.getElementById('default-posts');
+    resultsWrap = document.getElementById('search-results');
+    resultsGrid = document.getElementById('search-results-grid');
+    emptyEl = document.getElementById('search-empty');
+    resultCount = document.getElementById('result-count');
+    tagStrip = document.getElementById('tag-strip');
+    pagination = document.getElementById('pagination');
+    pageInfo = document.getElementById('page-info');
+    pagePrev = document.getElementById('page-prev');
+    pageNext = document.getElementById('page-next');
+
+    readUrl();
+    input.value = state.query;
+    buildTagStrip();
+
+    input.addEventListener(
+      'input',
+      () => {
+        state.query = input.value;
+        state.page = 1;
+        syncUrl();
+        // 有词就懒加载全文索引
+        if (state.query.trim() && !state.fullIndex) ensureIndex();
+        render();
+      },
+      { passive: true }
+    );
+
+    pagePrev.addEventListener('click', () => {
+      if (state.page > 1) {
+        state.page--;
+        syncUrl();
+        render();
+      }
+    });
+    pageNext.addEventListener('click', () => {
+      state.page++;
+      syncUrl();
+      render();
+    });
+
+    document.getElementById('clear-filters').addEventListener('click', () => {
+      state.query = '';
+      state.tag = '全部';
+      state.page = 1;
+      input.value = '';
+      syncUrl();
+      buildTagStrip();
+      render();
+    });
+
+    // 前进/后退同步
+    window.addEventListener('popstate', () => {
+      readUrl();
+      input.value = state.query;
+      buildTagStrip();
+      render();
+    });
+
+    render();
+  }
+
+  document.addEventListener('astro:page-load', initSearch);
+</script>
+
+<style is:global>
+  .animate-fade-in-up {
+    animation: fadeInUpCard 0.4s ease-out both;
+  }
+
+  @keyframes fadeInUpCard {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
