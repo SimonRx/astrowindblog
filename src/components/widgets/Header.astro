@@ -218,6 +218,11 @@ const crumbs =
   aw-header {
     display: contents;
   }
+
+  /* 手机端展开菜单时隐藏左上角面包屑（保留头像） */
+  #header.expanded [data-aw-breadcrumb] {
+    display: none;
+  }
 </style>
 
 <script>

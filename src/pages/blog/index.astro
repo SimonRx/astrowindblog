@@ -173,14 +173,42 @@ const postList = allPosts.map((post) => ({
 <script type="application/json" id="blog-posts-data" set:html={JSON.stringify(postList)} />
 
 <script>
+  // 搜索初始化：在每次 ClientRouter 页面切换（astro:page-load）后重新执行，
+  // 重新获取当前 DOM 节点，避免模块脚本只执行一次导致事件绑定到旧节点。
+  const state = {
+    input: null,
+    defaultPosts: null,
+    resultsWrap: null,
+    resultsGrid: null,
+    emptyMsg: null,
+    timer: null,
+    bound: false,
+  };
+
+  function initSearch() {
+    const input = document.getElementById('blog-search-input');
+    // 若页面尚未渲染完成（如首次导航前脚本已执行），等到 DOM 就绪
+    if (!input) return;
+
+    // 每次导航都重新获取节点（ClientRouter 会替换 DOM）
+    state.input = input;
+    state.defaultPosts = document.getElementById('default-posts');
+    state.resultsWrap = document.getElementById('search-results');
+    state.resultsGrid = document.getElementById('search-results-grid');
+    state.emptyMsg = document.getElementById('search-empty');
+
+    // 防重复绑定：同一文档生命周期内只绑定一次
+    if (state.bound) return;
+    state.bound = true;
+
+    input.addEventListener('input', () => {
+      clearTimeout(state.timer);
+      state.timer = setTimeout(runSearch, 250);
+    });
+  }
+
   const postList = JSON.parse(document.getElementById('blog-posts-data').textContent);
   const bySlug = Object.fromEntries(postList.map((p) => [p.slug, p]));
-
-  const input = document.getElementById('blog-search-input');
-  const defaultPosts = document.getElementById('default-posts');
-  const resultsWrap = document.getElementById('search-results');
-  const resultsGrid = document.getElementById('search-results-grid');
-  const emptyMsg = document.getElementById('search-empty');
 
   function formatDate(iso) {
     if (!iso) return '日期未知';
@@ -261,22 +289,22 @@ const postList = allPosts.map((post) => ({
 
   // 视图切换：用 opacity/visibility 交叉淡入，避免 display:none 造成的闪烁与高度突变
   function showDefaultView() {
-    defaultPosts.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
-    resultsWrap.classList.add('invisible', 'opacity-0', 'pointer-events-none');
+    state.defaultPosts.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+    state.resultsWrap.classList.add('invisible', 'opacity-0', 'pointer-events-none');
   }
 
   function showResultsView() {
-    defaultPosts.classList.add('invisible', 'opacity-0', 'pointer-events-none');
-    resultsWrap.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
+    state.defaultPosts.classList.add('invisible', 'opacity-0', 'pointer-events-none');
+    state.resultsWrap.classList.remove('invisible', 'opacity-0', 'pointer-events-none');
   }
 
   async function runSearch() {
-    const query = input.value.trim();
+    const query = state.input.value.trim();
 
     if (!query) {
       // 空查询：清空结果并恢复默认分页列表
-      resultsGrid.textContent = '';
-      emptyMsg.classList.add('hidden');
+      state.resultsGrid.textContent = '';
+      state.emptyMsg.classList.add('hidden');
       showDefaultView();
       return;
     }
@@ -292,7 +320,7 @@ const postList = allPosts.map((post) => ({
     } catch (err) {
       console.error('Pagefind 搜索失败：', err);
       showResultsView();
-      emptyMsg.classList.remove('hidden');
+      state.emptyMsg.classList.remove('hidden');
       return;
     }
 
@@ -321,26 +349,23 @@ const postList = allPosts.map((post) => ({
     }
 
     // 内容就绪后再切换到结果视图
-    resultsGrid.textContent = '';
-    emptyMsg.classList.add('hidden');
+    state.resultsGrid.textContent = '';
+    state.emptyMsg.classList.add('hidden');
     if (matched === 0) {
-      emptyMsg.classList.remove('hidden');
+      state.emptyMsg.classList.remove('hidden');
     }
     showResultsView();
 
     // 推迟到下一帧渲染，确保淡入动画正常触发、无白屏
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        resultsGrid.appendChild(fragment);
+        state.resultsGrid.appendChild(fragment);
       });
     });
   }
 
-  let timer;
-  input.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(runSearch, 250);
-  });
+  // 每次 ClientRouter 页面切换完成后重新初始化（首次加载也会触发）
+  document.addEventListener('astro:page-load', initSearch);
 </script>
 
 <style is:global>

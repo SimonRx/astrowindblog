@@ -21,7 +21,7 @@ const metadata = { title: '视频工具' };
 <PageLayout metadata={metadata}>
   <main class="max-w-3xl mx-auto px-4 py-8" data-page="video-toolbox">
     <!-- 标题 + 返回 -->
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center mb-4">
       <div class="flex items-center gap-2">
         <a
           href="/tools"
@@ -32,7 +32,6 @@ const metadata = { title: '视频工具' };
         </a>
         <h1 class="text-2xl font-bold">视频工具</h1>
       </div>
-      <span class="text-xs text-muted">工具串联 · 无缝接力</span>
     </div>
 
     <!-- 工具串联条 -->
@@ -251,16 +250,16 @@ const metadata = { title: '视频工具' };
 
         <hr class="border-gray-200 dark:border-slate-700" />
 
-        <!-- Lock aspect ratio -->
+        <!-- 锁定比例 -->
         <div class="flex items-center gap-3">
           <Icon name="tabler:lock" class="w-4 h-4 text-muted" />
-          <label class="text-sm shrink-0" for="crop-aspect">Lock aspect ratio</label>
+          <label class="text-sm shrink-0" for="crop-aspect">锁定比例</label>
           <select
             id="crop-aspect"
             class="rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
           >
-            <option value="no">No</option>
-            <option value="yes">Yes（原比例）</option>
+            <option value="no">不锁定</option>
+            <option value="yes">原比例</option>
             <option value="1">1:1</option>
             <option value="16 / 9">16:9</option>
             <option value="4 / 3">4:3</option>
@@ -269,10 +268,10 @@ const metadata = { title: '视频工具' };
           </select>
         </div>
 
-        <!-- Output format -->
+        <!-- 输出格式 -->
         <div class="flex items-center gap-3">
           <Icon name="tabler:settings" class="w-4 h-4 text-muted" />
-          <label class="text-sm shrink-0" for="crop-output">Output format and encoding</label>
+          <label class="text-sm shrink-0" for="crop-output">输出格式</label>
           <select
             id="crop-output"
             class="rounded-md border border-gray-300 dark:border-slate-600 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-slate-100 focus:outline-none"
@@ -281,13 +280,6 @@ const metadata = { title: '视频工具' };
             <option value="webm">WebM</option>
           </select>
         </div>
-
-        <!-- Don't scale large videos -->
-        <label class="flex items-center gap-1.5 text-sm text-muted cursor-pointer">
-          <input type="checkbox" id="crop-no-scale" class="rounded" />
-          Don't scale large videos
-        </label>
-        <p class="text-xs text-muted">此选项仅影响预览显示，不影响裁剪结果；裁剪需重新编码画面。</p>
       </div>
 
       <!-- 缩放 -->
@@ -1046,20 +1038,19 @@ const metadata = { title: '视频工具' };
       const vf = `crop=${cw}:${ch}:${cx}:${cy}`;
       const outArgs =
         format === 'webm'
-          ? // vp9 在 wasm 单线程下极慢，用 realtime + 高 cpu-used 提速
+          ? // vp9 在 wasm 单线程下极慢且内存敏感，用 good deadline + 中等 cpu-used 规避越界；
+            // 音频改用 libvorbis（webm 标准支持），避免 libopus 在 wasm 下的内存越界问题
             [
               '-c:v',
               'libvpx-vp9',
               '-b:v',
               '1M',
               '-deadline',
-              'realtime',
+              'good',
               '-cpu-used',
-              '8',
+              '4',
               '-c:a',
-              'libopus',
-              '-movflags',
-              '+faststart',
+              'libvorbis',
               'output.webm',
             ]
           : [
