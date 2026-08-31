@@ -26,15 +26,21 @@ const metadata = { title: '工具箱' };
               href={`/tools/${tool.slug}`}
               class={`group block bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-8 text-center shadow-md hover:shadow-xl transition-shadow duration-300 ${delayClass}`}
             >
-              <div class="w-14 h-14 mx-auto rounded-lg bg-blue-50 dark:bg-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4 group-hover:scale-110 transition-transform duration-300">
+              <div class="w-14 h-14 mx-auto rounded-lg bg-[#4a74ad]/10 dark:bg-[#8ab4f8]/15 flex items-center justify-center text-[#4a74ad] dark:text-[#8ab4f8] mb-4 group-hover:scale-110 transition-transform duration-300">
                 <Icon name={tool.icon} class="w-8 h-8" />
               </div>
-              <h2 class="text-xl font-semibold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              <h2 class="text-xl font-semibold group-hover:text-[#4a74ad] dark:group-hover:text-[#8ab4f8] transition-colors">
                 {tool.name}
               </h2>
-              <p class="text-muted mt-2 text-sm">{tool.description}</p>
-              <span class="inline-block mt-4 text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:underline">
-                打开 →
+              <div class="flex flex-wrap justify-center gap-2 mt-3">
+                {tool.features.map((feature) => (
+                  <span class="rounded-full border border-gray-200 dark:border-slate-600 px-3 py-1 text-xs text-muted">
+                    {feature}
+                  </span>
+                ))}
+              </div>
+              <span class="inline-flex items-center gap-1 mt-4 rounded-full border border-[#4a74ad]/40 dark:border-[#8ab4f8]/50 px-4 py-1.5 text-sm font-medium text-[#4a74ad] dark:text-[#8ab4f8] group-hover:bg-[#4a74ad] dark:group-hover:bg-[#8ab4f8] group-hover:text-white transition-colors">
+                打开 <Icon name="tabler:arrow-right" class="w-4 h-4" />
               </span>
             </a>
           );

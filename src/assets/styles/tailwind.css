@@ -6,6 +6,23 @@
 
 @custom-variant intersect (&:not([no-intersect]));
 
+/* 圆体（狮尾牙膏圆体 SC 子集 + Baloo 2 拉丁子集），自托管 */
+@font-face {
+  font-family: 'SweiTooth';
+  src: url('/fonts/sweitooth-subset.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Baloo 2';
+  src: url('/fonts/baloo2-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-primary: var(--aw-color-primary);
   --color-secondary: var(--aw-color-secondary);
@@ -18,6 +35,7 @@
     'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: var(--aw-font-serif, ui-serif), ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
   --font-heading: var(--aw-font-heading, ui-sans-serif), ui-sans-serif, system-ui, sans-serif;
+  --font-title: 'SweiTooth', 'Baloo 2', var(--aw-font-heading, ui-sans-serif), ui-sans-serif, sans-serif;
 
   --animate-fade: fadeInUp 1s both;
 
@@ -86,6 +104,14 @@ html.dark::-webkit-scrollbar-thumb {
   color: var(--aw-color-text-muted);
 }
 
+@utility font-title {
+  font-family: var(--font-title);
+}
+
+@utility font-display {
+  font-family: 'Baloo 2', 'SweiTooth', var(--aw-font-heading, ui-sans-serif), ui-sans-serif, sans-serif;
+}
+
 @utility scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: rgb(209 213 219) transparent;
@@ -126,22 +152,54 @@ html.dark::-webkit-scrollbar-thumb {
 }
 
 #header.scroll > div:first-child {
-  @apply bg-page md:bg-white/90 md:backdrop-blur-md;
-  box-shadow: 0 0.375rem 1.5rem 0 rgb(140 152 164 / 13%);
+  @apply bg-transparent;
+  box-shadow: none;
 }
 .dark #header.scroll > div:first-child,
 #header.scroll.dark > div:first-child {
-  @apply bg-page md:bg-[#030621e6] border-b border-gray-500/20;
+  @apply bg-transparent;
   box-shadow: none;
 }
 
-#header.expanded nav {
-  position: fixed;
-  top: 70px;
-  left: 0;
-  right: 0;
-  bottom: 70px !important;
-  padding: 0 5px;
+/* 移动端展开：汉堡只切换顶栏下方一个下拉面板，不进全屏、不拉伸胶囊 */
+@media (max-width: 767px) {
+  #header.expanded .aw-nav-capsule {
+    position: relative;
+  }
+
+  #header.expanded nav {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px;
+    border-radius: 18px;
+    border: 1px solid #e5e5e5;
+    background: var(--aw-color-bg-page, #fff);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    text-align: center;
+  }
+
+  #header.expanded nav ul {
+    width: 100%;
+  }
+
+  #header.expanded nav ul li {
+    width: 100%;
+  }
+
+  #header.expanded nav ul li > a,
+  #header.expanded nav ul li > button {
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+  }
 }
 
 .dropdown:focus .dropdown-menu,

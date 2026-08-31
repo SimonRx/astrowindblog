@@ -21,30 +21,30 @@ const metadata = { title: '视频工具' };
 <PageLayout metadata={metadata}>
   <main class="max-w-3xl mx-auto px-4 py-8" data-page="video-toolbox">
     <!-- 标题 + 返回 -->
-    <div class="flex items-center mb-4">
-      <div class="flex items-center gap-2">
-        <a
-          href="/tools"
-          class="inline-flex items-center text-sm text-muted hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-        >
-          <Icon name="tabler:chevron-left" class="w-5 h-5" />
-          工具箱
-        </a>
-        <h1 class="text-2xl font-bold">视频工具</h1>
-      </div>
+    <div class="relative mb-6">
+      <a
+        href="/tools"
+        class="absolute left-0 top-1/2 -translate-y-1/2 inline-flex items-center text-sm text-muted hover:text-gray-900 dark:hover:text-white transition-colors"
+      >
+        <Icon name="tabler:chevron-left" class="w-5 h-5" />
+        工具箱
+      </a>
+      <h1 class="text-2xl font-bold text-center">视频工具</h1>
     </div>
 
     <!-- 工具串联条 -->
-    <div class="flex gap-1 overflow-x-auto pb-2 px-1 -mx-1 border-b border-gray-200 dark:border-slate-700 mb-4">
+    <div
+      class="flex justify-center items-center gap-2 overflow-x-auto pb-3 px-1 -mx-1 border-b border-gray-200 dark:border-slate-700 mb-4"
+    >
       {
         tools.map((t) => (
           <button
             type="button"
             data-tool={t.id}
-            class={`flex flex-col items-center justify-center gap-1 min-w-[3.5rem] px-2 py-1.5 rounded-md text-[11px] leading-tight transition-colors ${
+            class={`flex flex-col items-center justify-center gap-1 min-w-[4rem] px-3 py-2 rounded-full text-[11px] leading-tight transition-all border ${
               t.active
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
-                : 'text-muted hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-slate-100'
+                ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white dark:text-gray-900'
+                : 'border-transparent text-muted hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-slate-700 dark:hover:text-white'
             }`}
           >
             <Icon name={t.icon} class="w-5 h-5" />
@@ -439,7 +439,7 @@ const metadata = { title: '视频工具' };
       <button
         id="apply-btn"
         type="button"
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         处理
       </button>
@@ -612,15 +612,18 @@ const metadata = { title: '视频工具' };
       activeTool = id;
       toolBtns.forEach((btn) => {
         const active = btn.dataset.tool === id;
-        btn.classList.toggle('bg-blue-100', active);
-        btn.classList.toggle('text-blue-700', active);
-        btn.classList.toggle('dark:bg-blue-500/20', active);
-        btn.classList.toggle('dark:text-blue-300', active);
+        btn.classList.toggle('border-gray-900', active);
+        btn.classList.toggle('bg-gray-900', active);
+        btn.classList.toggle('text-white', active);
+        btn.classList.toggle('dark:border-white', active);
+        btn.classList.toggle('dark:bg-white', active);
+        btn.classList.toggle('dark:text-gray-900', active);
+        btn.classList.toggle('border-transparent', !active);
         btn.classList.toggle('text-muted', !active);
         btn.classList.toggle('hover:bg-gray-100', !active);
-        btn.classList.toggle('dark:hover:bg-slate-700', !active);
         btn.classList.toggle('hover:text-gray-900', !active);
-        btn.classList.toggle('dark:hover:text-slate-100', !active);
+        btn.classList.toggle('dark:hover:bg-slate-700', !active);
+        btn.classList.toggle('dark:hover:text-white', !active);
       });
       panels.forEach((p) => {
         if (p.dataset.panel === id) show(p);

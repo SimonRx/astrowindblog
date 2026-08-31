@@ -17,7 +17,7 @@ export const footerData = {
   footNote: `
   <div class="flex justify-center w-full">
     <div class="text-center text-sm text-muted space-y-1">
-      <p>© 2026 二咪喵喵。保留所有权利。</p>
+      <p>© 2026 Meow2me。保留所有权利。</p>
       <p>
         <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">闽ICP备2026021587号</a>
         &nbsp;·&nbsp;

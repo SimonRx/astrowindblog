@@ -12,33 +12,28 @@ const metadata = { title: '主页' };
 
 <PageLayout metadata={metadata}>
   <main class="max-w-6xl mx-auto px-4 py-12">
-    <!-- 1. 个人介绍（淡入动画） -->
+    <!-- Hero（Hey There 水印 + 欢迎标题 + 介绍） -->
     <section
-      class="text-center mb-12 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
+      class="text-center mb-16 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
     >
-      <img
-        src="/avatar.webp"
-        alt="我的头像"
-        class="w-32 h-32 rounded-full mx-auto mb-4 object-cover border-4 border-gray-200 dark:border-slate-700"
-        fetchpriority="high"
-        decoding="async"
-      />
-      <h1 class="text-3xl font-bold">二咪喵喵</h1>
-      <p class="text-lg text-muted mt-2">In case I don't see you, good afternoon, good evening, and good night.</p>
-    </section>
-
-    <!-- 2. 网站介绍（淡入动画） -->
-    <section
-      class="prose prose-lg dark:prose-invert mx-auto mb-12 text-center intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
-    >
-      <p>一只懒猫记录生活点滴的笔记簿，分享一些有趣的事情，也许会有一些技术文章和实用工具。</p>
+      <p class="font-display text-[clamp(3.6rem,13vw,7rem)] leading-[0.95] font-bold text-[#d5d5d7] dark:text-white/40 select-none">
+        Hey There
+      </p>
+      <p class="text-muted mt-4">👋 嘿，你来啦！</p>
+      <h1 class="font-title text-[clamp(2.2rem,7vw,3.2rem)] font-extrabold leading-tight mt-4">
+        欢迎来到<br class="sm:hidden"><span class="accent-underline">二咪的小站</span>
+      </h1>
+      <p class="mt-6 text-sm md:text-base leading-relaxed text-muted max-w-xl mx-auto">
+        一只懒猫记录<span class="text-[#4a74ad] dark:text-[#5d84c0] font-semibold">生活点滴</span>的笔记簿，分享一些有趣的事情，
+        也许会有一些<span class="text-[#4a74ad] dark:text-[#5d84c0] font-semibold">技术文章</span>和<span class="text-[#4a74ad] dark:text-[#5d84c0] font-semibold">实用工具</span>。
+      </p>
     </section>
 
     <!-- 3. 最近博客文章（淡入动画） -->
     <section
       class="mb-12 intersect-once intersect-quarter intersect-no-queue motion-safe:md:opacity-0 motion-safe:md:intersect:animate-fade"
     >
-      <h2 class="text-2xl font-semibold mb-6 text-center">最近的博客文章</h2>
+      <h2 class="font-title text-3xl font-extrabold mb-6 text-center transition-colors hover:text-[#4a74ad] dark:hover:text-[#5d84c0]">最近的博客文章</h2>
       {
         recentPosts.length === 0 ? (
           <p class="text-center text-muted">还没有文章，敬请期待！</p>
@@ -98,7 +93,7 @@ const metadata = { title: '主页' };
         )
       }
       <div class="text-center mt-8">
-        <a href="/blog" class="btn group inline-flex items-center gap-2">
+        <a href="/blog" class="btn font-title group inline-flex items-center gap-2">
           查看全部文章
           <Icon
             name="tabler:arrow-right"
@@ -109,3 +104,22 @@ const metadata = { title: '主页' };
     </section>
   </main>
 </PageLayout>
+
+<style>
+  /* 标题「二咪的小站」蓝色下划线高亮点缀 */
+  .accent-underline {
+    position: relative;
+    padding: 0 4px;
+  }
+  .accent-underline::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    height: 12px;
+    background: rgba(120, 165, 235, 0.35);
+    border-radius: 8px;
+    z-index: -1;
+  }
+</style>
